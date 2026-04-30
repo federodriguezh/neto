@@ -26,15 +26,20 @@ def fetch_data912_symbols() -> list[str]:
 
 
 def fetch_yahoo_history(symbol: str) -> dict[str, float]:
-    """Fetch max historical closes for a CEDEAR from yfinance."""
+    """Fetch historical closes for a CEDEAR from yfinance.
+
+    Tries fallback periods for newly listed tickers that don't yet
+    support 'max' daily granularity.
+    """
     ticker = yf.Ticker(f"{symbol}.BA")
-    hist = ticker.history(period="max")
-    if hist.empty:
-        return {}
-    return {
-        date.strftime("%Y-%m-%d"): round(float(row["Close"]), 2)
-        for date, row in hist.iterrows()
-    }
+    for period in ("max", "5d", "1d"):
+        hist = ticker.history(period=period)
+        if not hist.empty:
+            return {
+                date.strftime("%Y-%m-%d"): round(float(row["Close"]), 2)
+                for date, row in hist.iterrows()
+            }
+    return {}
 
 
 def main() -> int:
