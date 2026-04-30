@@ -9,12 +9,12 @@ import HoldingsTable from '../components/HoldingsTable';
 
 export default function Dashboard() {
   const { holdings, totalRealizedPnl, loading: holdingsLoading } = usePortfolio();
-  const { history, loading: historyLoading } = usePortfolioValueHistory();
+  const { history } = usePortfolioValueHistory();
 
   const symbols = useMemo(() => holdings.map((h) => h.symbol), [holdings]);
   const assetClasses = useMemo(() => holdings.map((h) => h.assetClass), [holdings]);
-  const { prices, loading: pricesLoading, error: pricesError } = useLivePrices(symbols, assetClasses);
-  const yesterdayPrices = useYesterdayCloses(symbols);
+  const { prices, pctChanges, loading: pricesLoading, error: pricesError } = useLivePrices(symbols, assetClasses);
+  const { yesterdayPrices, loading: yesterdayPricesLoading } = useYesterdayCloses(symbols);
 
   const totalValue = useMemo(() => {
     return holdings.reduce((sum, h) => {
@@ -23,18 +23,25 @@ export default function Dashboard() {
     }, 0);
   }, [holdings, prices]);
 
-  const dailyChange = useMemo(() => {
-    const yesterdayValue = history.length >= 2 ? history[history.length - 2].value : 0;
-    return yesterdayValue > 0 ? totalValue - yesterdayValue : 0;
-  }, [history, totalValue]);
+  const { dailyChange, dailyChangePercent } = useMemo(() => {
+    let change = 0;
+    let baseValue = 0;
+    for (const h of holdings) {
+      const live = prices[h.symbol] ?? 0;
+      const base = yesterdayPrices[h.symbol];
+      if (base === undefined) continue;
+      change += h.quantity * (live - base);
+      baseValue += h.quantity * base;
+    }
+    const percent = baseValue > 0 ? (change / baseValue) * 100 : 0;
+    return { dailyChange: change, dailyChangePercent: percent };
+  }, [holdings, prices, yesterdayPrices]);
 
-  const dailyChangePercent = useMemo(() => {
-    const yesterdayValue = history.length >= 2 ? history[history.length - 2].value : 0;
-    if (yesterdayValue === 0) return 0;
-    return (dailyChange / yesterdayValue) * 100;
-  }, [history, dailyChange]);
+  const hasValidBase = useMemo(() => {
+    return holdings.some((h) => yesterdayPrices[h.symbol] !== undefined);
+  }, [holdings, yesterdayPrices]);
 
-  const isLoading = holdingsLoading || historyLoading || pricesLoading;
+  const isLoading = holdingsLoading || pricesLoading || yesterdayPricesLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -57,7 +64,7 @@ export default function Dashboard() {
             <span className="text-xs font-medium uppercase tracking-wider">Daily Change</span>
           </div>
           <div className={`text-2xl font-bold ${dailyChange >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isLoading ? '—' : `${dailyChange >= 0 ? '+' : ''}$${dailyChange.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+            {isLoading || !hasValidBase ? '—' : `${dailyChange >= 0 ? '+' : ''}$${dailyChange.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
           </div>
         </div>
 
@@ -67,7 +74,7 @@ export default function Dashboard() {
             <span className="text-xs font-medium uppercase tracking-wider">Daily Change %</span>
           </div>
           <div className={`text-2xl font-bold ${dailyChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isLoading ? '—' : `${dailyChangePercent >= 0 ? '+' : ''}${dailyChangePercent.toFixed(2)}%`}
+            {isLoading || !hasValidBase ? '—' : `${dailyChangePercent >= 0 ? '+' : ''}${dailyChangePercent.toFixed(2)}%`}
           </div>
         </div>
 
@@ -89,7 +96,7 @@ export default function Dashboard() {
       )}
 
       <PortfolioChart history={history} />
-      <HoldingsTable holdings={holdings} prices={prices} yesterdayPrices={yesterdayPrices} />
+      <HoldingsTable holdings={holdings} prices={prices} pctChanges={pctChanges} />
     </div>
   );
 }

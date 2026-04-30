@@ -25,8 +25,8 @@ def fetch_data912_symbols() -> list[str]:
     return sorted(set(symbols))
 
 
-def fetch_yahoo_history(symbol: str) -> dict[str, float]:
-    """Fetch historical closes for a CEDEAR from yfinance.
+def fetch_yahoo_history(symbol: str) -> list[dict]:
+    """Fetch historical bars for a CEDEAR from yfinance.
 
     Tries fallback periods for newly listed tickers that don't yet
     support 'max' daily granularity.
@@ -35,11 +35,15 @@ def fetch_yahoo_history(symbol: str) -> dict[str, float]:
     for period in ("max", "5d", "1d"):
         hist = ticker.history(period=period)
         if not hist.empty:
-            return {
-                date.strftime("%Y-%m-%d"): round(float(row["Close"]), 2)
-                for date, row in hist.iterrows()
-            }
-    return {}
+            bars = []
+            for date, row in hist.iterrows():
+                bars.append({
+                    "date": date.strftime("%Y-%m-%d"),
+                    "open": round(float(row["Open"]), 2),
+                    "close": round(float(row["Close"]), 2),
+                })
+            return bars
+    return []
 
 
 def main() -> int:
@@ -68,7 +72,7 @@ def main() -> int:
             skipped += 1
             continue
 
-        new_content = json.dumps(history, indent=2, sort_keys=True)
+        new_content = json.dumps(history, indent=2)
 
         if output_path.exists():
             old_content = output_path.read_text()

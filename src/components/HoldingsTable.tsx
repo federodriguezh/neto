@@ -4,20 +4,19 @@ import type { Holding } from '../types';
 interface HoldingsTableProps {
   holdings: Holding[];
   prices: Record<string, number>;
-  yesterdayPrices?: Record<string, number>;
+  pctChanges: Record<string, number>;
 }
 
-export default function HoldingsTable({ holdings, prices, yesterdayPrices }: HoldingsTableProps) {
+export default function HoldingsTable({ holdings, prices, pctChanges }: HoldingsTableProps) {
   const rows = useMemo(() => {
     return holdings.map((h) => {
       const livePrice = prices[h.symbol] ?? 0;
       const marketValue = h.quantity * livePrice;
       const unrealizedPnl = marketValue - h.quantity * h.avgCost;
-      const yClose = yesterdayPrices?.[h.symbol];
-      const dailyChgPct = yClose && yClose > 0 ? ((livePrice - yClose) / yClose) * 100 : null;
+      const dailyChgPct = pctChanges[h.symbol] ?? null;
       return { ...h, livePrice, marketValue, unrealizedPnl, dailyChgPct };
     });
-  }, [holdings, prices, yesterdayPrices]);
+  }, [holdings, prices, pctChanges]);
 
   const totalMarketValue = useMemo(() => rows.reduce((sum, r) => sum + r.marketValue, 0), [rows]);
   const totalUnrealizedPnl = useMemo(() => rows.reduce((sum, r) => sum + r.unrealizedPnl, 0), [rows]);

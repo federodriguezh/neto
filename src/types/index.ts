@@ -26,6 +26,7 @@ export interface Transaction {
 export interface HistoricalPrice {
   symbol: string;
   date: string;
+  open?: number;
   close: number;
 }
 
@@ -37,6 +38,7 @@ export interface PortfolioHistory {
 export interface PriceCacheEntry {
   symbol: string;
   price: number;
+  pctChange?: number;
   timestamp: number;
 }
 

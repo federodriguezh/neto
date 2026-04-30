@@ -3,6 +3,7 @@ import type {
   Data912LiveResponse,
   Data912HistoricalResponse,
   PriceMap,
+  PctChangeMap,
 } from './types';
 import {
   getPriceCache,
@@ -61,7 +62,7 @@ function getHistoricalEndpoint(symbol: string, assetClass: AssetClass): string |
   return null;
 }
 
-export async function fetchLivePrices(assetClass: AssetClass): Promise<PriceMap> {
+export async function fetchLivePrices(assetClass: AssetClass): Promise<{ prices: PriceMap; pctChanges: PctChangeMap }> {
   const now = Date.now();
 
   const endpoint = LIVE_ENDPOINTS[assetClass];
@@ -70,35 +71,42 @@ export async function fetchLivePrices(assetClass: AssetClass): Promise<PriceMap>
   );
 
   const priceMap: PriceMap = {};
+  const pctChangeMap: PctChangeMap = {};
   for (const item of items) {
     priceMap[item.symbol] = item.c;
+    pctChangeMap[item.symbol] = item.pct_change;
     await putPriceCache({
       symbol: item.symbol,
       price: item.c,
+      pctChange: item.pct_change,
       timestamp: now,
     });
   }
 
-  return priceMap;
+  return { prices: priceMap, pctChanges: pctChangeMap };
 }
 
 export async function fetchLivePricesForSymbols(
   symbols: string[],
   assetClasses: AssetClass[]
-): Promise<PriceMap> {
+): Promise<{ prices: PriceMap; pctChanges: PctChangeMap }> {
   const now = Date.now();
   const priceMap: PriceMap = {};
+  const pctChangeMap: PctChangeMap = {};
 
   // Check cache first
   for (const symbol of symbols) {
     const cached = await getPriceCache(symbol);
     if (cached && now - cached.timestamp < LIVE_CACHE_TTL_MS) {
       priceMap[symbol] = cached.price;
+      if (cached.pctChange !== undefined) {
+        pctChangeMap[symbol] = cached.pctChange;
+      }
     }
   }
 
   const missingSymbols = symbols.filter((s) => priceMap[s] === undefined);
-  if (missingSymbols.length === 0) return priceMap;
+  if (missingSymbols.length === 0) return { prices: priceMap, pctChanges: pctChangeMap };
 
   // Determine which asset classes to fetch
   const classesToFetch = new Set<AssetClass>();
@@ -110,11 +118,12 @@ export async function fetchLivePricesForSymbols(
 
   // Fetch live prices for each missing asset class
   for (const assetClass of classesToFetch) {
-    const classPrices = await fetchLivePrices(assetClass);
-    Object.assign(priceMap, classPrices);
+    const classData = await fetchLivePrices(assetClass);
+    Object.assign(priceMap, classData.prices);
+    Object.assign(pctChangeMap, classData.pctChanges);
   }
 
-  return priceMap;
+  return { prices: priceMap, pctChanges: pctChangeMap };
 }
 
 export interface HistoricalBar {
@@ -140,7 +149,7 @@ export async function fetchData912HistoricalPrices(
   }
 
   await putHistoricalPrices(
-    bars.map((b) => ({ symbol, date: b.date, close: b.c }))
+    bars.map((b) => ({ symbol, date: b.date, open: b.o, close: b.c }))
   );
 
   return bars.map((b) => ({ date: b.date, close: b.c }));

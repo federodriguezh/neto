@@ -4,6 +4,7 @@ import { fetchLivePricesForSymbols } from '../api/data912';
 
 export function useLivePrices(symbols: string[], assetClasses: AssetClass[]) {
   const [prices, setPrices] = useState<Record<string, number>>({});
+  const [pctChanges, setPctChanges] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -13,8 +14,9 @@ export function useLivePrices(symbols: string[], assetClasses: AssetClass[]) {
     setLoading(true);
     setError(null);
     try {
-      const priceMap = await fetchLivePricesForSymbols(symbols, assetClasses);
-      setPrices(priceMap);
+      const data = await fetchLivePricesForSymbols(symbols, assetClasses);
+      setPrices(data.prices);
+      setPctChanges(data.pctChanges);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
@@ -30,5 +32,5 @@ export function useLivePrices(symbols: string[], assetClasses: AssetClass[]) {
     };
   }, [fetchPrices]);
 
-  return { prices, loading, error, refetch: fetchPrices };
+  return { prices, pctChanges, loading, error, refetch: fetchPrices };
 }
