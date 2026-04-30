@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dev-dist/
+.env
+.env.*
+*.log
+.venv/
+.DS_Store
+
+# OpenCode / local tooling
+AGENTS.md
+opencode.json
+.devcontainer/
+DECISIONS.md

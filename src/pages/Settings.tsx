@@ -1,0 +1,125 @@
+import { useState } from 'react';
+import { Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { useAccounts } from '../hooks/useAccounts';
+import { db } from '../db';
+import ImportExport from '../components/ImportExport';
+
+export default function SettingsPage() {
+  const { accounts, create, update, remove } = useAccounts();
+  const [newAccountName, setNewAccountName] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState('');
+
+  const handleCreate = async () => {
+    if (!newAccountName.trim()) return;
+    await create(newAccountName.trim());
+    setNewAccountName('');
+  };
+
+  const handleUpdate = async (id: number) => {
+    if (!editingName.trim()) return;
+    await update(id, editingName.trim());
+    setEditingId(null);
+    setEditingName('');
+  };
+
+  const handleClearAll = async () => {
+    if (confirm('WARNING: This will permanently delete ALL data. Are you sure?')) {
+      await db.delete();
+      window.location.reload();
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl font-bold text-slate-100">Settings</h1>
+
+      <div className="rounded-xl bg-slate-800 p-4">
+        <h2 className="mb-3 text-sm font-medium text-slate-200">Accounts</h2>
+        <div className="mb-4 flex gap-2">
+          <input
+            className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
+            placeholder="New account name"
+            value={newAccountName}
+            onChange={(e) => setNewAccountName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+          />
+          <button
+            onClick={handleCreate}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
+          >
+            <Plus size={16} />
+            Add
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {accounts.map((account) => (
+            <div
+              key={account.id}
+              className="flex items-center justify-between rounded-lg bg-slate-900 px-3 py-2"
+            >
+              {editingId === account.id ? (
+                <div className="flex flex-1 items-center gap-2">
+                  <input
+                    className="flex-1 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 border border-slate-700"
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && account.id !== undefined && handleUpdate(account.id)}
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => account.id !== undefined && handleUpdate(account.id)}
+                    className="text-xs font-medium text-emerald-400 hover:text-emerald-300"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => { setEditingId(null); setEditingName(''); }}
+                    className="text-xs font-medium text-slate-400 hover:text-slate-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <span className="text-sm text-slate-200">{account.name}</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setEditingId(account.id ?? null); setEditingName(account.name); }}
+                      className="text-slate-400 hover:text-slate-200 transition-colors"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={() => account.id !== undefined && remove(account.id)}
+                      className="text-slate-400 hover:text-rose-400 transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          {accounts.length === 0 && (
+            <div className="text-sm text-slate-500">No accounts yet.</div>
+          )}
+        </div>
+      </div>
+
+      <ImportExport />
+
+      <div className="rounded-xl bg-slate-800 p-4">
+        <h2 className="mb-3 text-sm font-medium text-slate-200">Danger Zone</h2>
+        <button
+          onClick={handleClearAll}
+          className="inline-flex items-center gap-2 rounded-lg bg-rose-900/30 px-3 py-2 text-sm font-medium text-rose-400 hover:bg-rose-900/50 transition-colors"
+        >
+          <AlertTriangle size={16} />
+          Clear All Data
+        </button>
+      </div>
+    </div>
+  );
+}
