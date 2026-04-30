@@ -7,6 +7,9 @@ dev-dist/
 .venv/
 .DS_Store
 
+# Generated data files
+public/data/cedears/
+
 # OpenCode / local tooling
 AGENTS.md
 opencode.json
