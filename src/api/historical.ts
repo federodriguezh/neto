@@ -1,7 +1,7 @@
 import type { AssetClass } from '../types';
 import type { HistoricalBar } from './data912';
 import { fetchData912HistoricalPrices } from './data912';
-import { fetchYahooHistoricalPrices } from './yahoo';
+import { fetchStaticCedearHistory } from './staticCedears';
 
 export { type HistoricalBar } from './data912';
 
@@ -10,9 +10,9 @@ export async function fetchHistoricalPrices(
   assetClass: AssetClass
 ): Promise<HistoricalBar[]> {
   if (assetClass === 'arg_cedears') {
-    const yahooBars = await fetchYahooHistoricalPrices(symbol);
-    if (yahooBars.length > 0) {
-      return yahooBars;
+    const staticBars = await fetchStaticCedearHistory(symbol);
+    if (staticBars.length > 0) {
+      return staticBars;
     }
     return fetchData912HistoricalPrices(symbol, assetClass);
   }
