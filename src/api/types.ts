@@ -1,27 +1,17 @@
 export interface Data912LiveItem {
-  ticker: string;
-  price: number;
-  change: number;
-  change_percent: number;
-  volume: number;
-  last_update: string;
+  symbol: string;
+  c: number;
+  pct_change: number;
+  v: number;
 }
 
-export interface Data912LiveResponse {
-  data: Data912LiveItem[];
-}
+export type Data912LiveResponse = Data912LiveItem[];
 
 export interface Data912HistoricalBar {
   date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
+  c: number;
 }
 
-export interface Data912HistoricalResponse {
-  data: Data912HistoricalBar[];
-}
+export type Data912HistoricalResponse = Data912HistoricalBar[];
 
 export type PriceMap = Record<string, number>;

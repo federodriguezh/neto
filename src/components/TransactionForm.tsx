@@ -11,8 +11,7 @@ interface TransactionFormProps {
 const ASSET_CLASSES: { value: AssetClass; label: string }[] = [
   { value: 'arg_stocks', label: 'Argentine Stocks (BYMA)' },
   { value: 'arg_cedears', label: 'Cedears' },
-  { value: 'usa_stocks', label: 'USA Stocks' },
-  { value: 'usa_adrs', label: 'USA ADRs' },
+  { value: 'arg_bonds', label: 'Argentine Bonds' },
 ];
 
 export default function TransactionForm({ accounts, initial, onSubmit, onCancel }: TransactionFormProps) {

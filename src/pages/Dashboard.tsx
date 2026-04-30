@@ -12,7 +12,7 @@ export default function Dashboard() {
 
   const symbols = useMemo(() => holdings.map((h) => h.symbol), [holdings]);
   const assetClasses = useMemo(() => holdings.map((h) => h.assetClass), [holdings]);
-  const { prices, loading: pricesLoading } = useLivePrices(symbols, assetClasses);
+  const { prices, loading: pricesLoading, error: pricesError } = useLivePrices(symbols, assetClasses);
 
   const totalValue = useMemo(() => {
     return holdings.reduce((sum, h) => {
@@ -72,6 +72,12 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {pricesError && (
+        <div className="rounded-xl bg-rose-900/30 border border-rose-800 p-4 text-sm text-rose-300">
+          <strong className="text-rose-200">Price data unavailable:</strong> {pricesError}
+        </div>
+      )}
 
       <PortfolioChart history={history} />
       <HoldingsTable holdings={holdings} prices={prices} />

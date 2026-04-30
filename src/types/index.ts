@@ -1,4 +1,4 @@
-export type AssetClass = 'arg_stocks' | 'arg_cedears' | 'usa_stocks' | 'usa_adrs';
+export type AssetClass = 'arg_stocks' | 'arg_cedears' | 'arg_bonds';
 export type TransactionType = 'buy' | 'sell';
 
 export interface Account {

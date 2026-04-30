@@ -3,11 +3,10 @@ import type { AssetClass, PortfolioHistory, Transaction, HistoricalPrice } from 
 import {
   getTransactions,
   getHistoricalPricesForSymbol,
-  putHistoricalPrices,
   putPortfolioHistory,
   clearPortfolioHistory,
 } from '../db';
-import { fetchHistoricalPrices, fetchLivePricesForSymbols } from '../api/data912';
+import { fetchHistoricalPrices } from '../api/data912';
 
 interface DateHolding {
   symbol: string;
@@ -66,30 +65,12 @@ async function buildPriceIndex(
     let prices = await getHistoricalPricesForSymbol(symbol);
 
     // For ARG assets, fetch historical if we have none
-    if ((assetClass === 'arg_stocks' || assetClass === 'arg_cedears') && prices.length === 0) {
+    if ((assetClass === 'arg_stocks' || assetClass === 'arg_cedears' || assetClass === 'arg_bonds') && prices.length === 0) {
       try {
         await fetchHistoricalPrices(symbol, assetClass);
         prices = await getHistoricalPricesForSymbol(symbol);
-      } catch {
-        // ignore fetch errors
-      }
-    }
-
-    // For USA assets, snapshot today's live price if not present
-    if ((assetClass === 'usa_stocks' || assetClass === 'usa_adrs')) {
-      const today = new Date().toISOString().split('T')[0];
-      const hasToday = prices.some((p) => p.date === today);
-      if (!hasToday) {
-        try {
-          const liveMap = await fetchLivePricesForSymbols([symbol], [assetClass]);
-          const price = liveMap[symbol];
-          if (price !== undefined) {
-            await putHistoricalPrices([{ symbol, date: today, close: price }]);
-            prices = await getHistoricalPricesForSymbol(symbol);
-          }
-        } catch {
-          // ignore fetch errors
-        }
+      } catch (e) {
+        console.error(`Failed to fetch historical prices for ${symbol}:`, e);
       }
     }
 

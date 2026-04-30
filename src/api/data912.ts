@@ -51,13 +51,13 @@ async function fetchJson<T>(url: string): Promise<T> {
 const LIVE_ENDPOINTS: Record<AssetClass, string> = {
   arg_stocks: '/live/arg_stocks',
   arg_cedears: '/live/arg_cedears',
-  usa_stocks: '/live/usa_stocks',
-  usa_adrs: '/live/usa_adrs',
+  arg_bonds: '/live/arg_bonds',
 };
 
 function getHistoricalEndpoint(symbol: string, assetClass: AssetClass): string | null {
   if (assetClass === 'arg_stocks') return `/historical/stocks/${symbol}`;
   if (assetClass === 'arg_cedears') return `/historical/cedears/${symbol}`;
+  if (assetClass === 'arg_bonds') return `/historical/bonds/${symbol}`;
   return null;
 }
 
@@ -65,16 +65,16 @@ export async function fetchLivePrices(assetClass: AssetClass): Promise<PriceMap>
   const now = Date.now();
 
   const endpoint = LIVE_ENDPOINTS[assetClass];
-  const data = await enqueueRequest(() =>
+  const items = await enqueueRequest(() =>
     fetchJson<Data912LiveResponse>(`${BASE_URL}${endpoint}`)
   );
 
   const priceMap: PriceMap = {};
-  for (const item of data.data) {
-    priceMap[item.ticker] = item.price;
+  for (const item of items) {
+    priceMap[item.symbol] = item.c;
     await putPriceCache({
-      symbol: item.ticker,
-      price: item.price,
+      symbol: item.symbol,
+      price: item.c,
       timestamp: now,
     });
   }
@@ -132,20 +132,15 @@ export async function fetchHistoricalPrices(
     return [];
   }
 
-  const data = await enqueueRequest(() =>
+  const bars = await enqueueRequest(() =>
     fetchJson<Data912HistoricalResponse>(`${BASE_URL}${endpoint}`)
   );
 
-  const bars = data.data.map((bar) => ({
-    date: bar.date,
-    close: bar.close,
-  }));
-
   await putHistoricalPrices(
-    bars.map((b) => ({ symbol, date: b.date, close: b.close }))
+    bars.map((b) => ({ symbol, date: b.date, close: b.c }))
   );
 
-  return bars;
+  return bars.map((b) => ({ date: b.date, close: b.c }));
 }
 
 
