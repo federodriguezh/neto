@@ -122,19 +122,22 @@ export interface HistoricalBar {
   close: number;
 }
 
-export async function fetchHistoricalPrices(
+export async function fetchData912HistoricalPrices(
   symbol: string,
   assetClass: AssetClass
 ): Promise<HistoricalBar[]> {
   const endpoint = getHistoricalEndpoint(symbol, assetClass);
   if (!endpoint) {
-    // USA stocks/ADRs have no historical endpoint
     return [];
   }
 
   const bars = await enqueueRequest(() =>
     fetchJson<Data912HistoricalResponse>(`${BASE_URL}${endpoint}`)
   );
+
+  if (!Array.isArray(bars)) {
+    return [];
+  }
 
   await putHistoricalPrices(
     bars.map((b) => ({ symbol, date: b.date, close: b.c }))

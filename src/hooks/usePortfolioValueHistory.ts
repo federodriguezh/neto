@@ -6,7 +6,7 @@ import {
   putPortfolioHistory,
   clearPortfolioHistory,
 } from '../db';
-import { fetchHistoricalPrices } from '../api/data912';
+import { fetchHistoricalPrices } from '../api/historical';
 
 interface DateHolding {
   symbol: string;
@@ -54,32 +54,57 @@ function replayTransactions(transactions: Transaction[], upToDate: string): Date
   return result;
 }
 
+function mergeTransactionPrices(
+  symbol: string,
+  externalPrices: HistoricalPrice[],
+  transactions: Transaction[]
+): HistoricalPrice[] {
+  const priceMap = new Map<string, HistoricalPrice>();
+
+  for (const p of externalPrices) {
+    priceMap.set(p.date, p);
+  }
+
+  for (const tx of transactions) {
+    if (tx.symbol !== symbol) continue;
+    if (!priceMap.has(tx.date)) {
+      priceMap.set(tx.date, { symbol, date: tx.date, close: tx.price });
+    }
+  }
+
+  return Array.from(priceMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
 async function buildPriceIndex(
   symbols: string[],
-  assetClasses: AssetClass[]
+  assetClasses: AssetClass[],
+  transactions: Transaction[]
 ): Promise<Map<string, HistoricalPrice[]>> {
   const index = new Map<string, HistoricalPrice[]>();
   for (let i = 0; i < symbols.length; i++) {
     const symbol = symbols[i];
     const assetClass = assetClasses[i];
-    let prices = await getHistoricalPricesForSymbol(symbol);
+    let externalPrices = await getHistoricalPricesForSymbol(symbol);
 
-    // For ARG assets, fetch historical if we have none
-    if ((assetClass === 'arg_stocks' || assetClass === 'arg_cedears' || assetClass === 'arg_bonds') && prices.length === 0) {
+    if (
+      (assetClass === 'arg_stocks' || assetClass === 'arg_cedears' || assetClass === 'arg_bonds') &&
+      externalPrices.length === 0
+    ) {
       try {
         await fetchHistoricalPrices(symbol, assetClass);
-        prices = await getHistoricalPricesForSymbol(symbol);
+        externalPrices = await getHistoricalPricesForSymbol(symbol);
       } catch (e) {
         console.error(`Failed to fetch historical prices for ${symbol}:`, e);
       }
     }
 
-    index.set(symbol, prices);
+    const merged = mergeTransactionPrices(symbol, externalPrices, transactions);
+    index.set(symbol, merged);
   }
   return index;
 }
 
-function findPriceForwardFill(
+function findPriceBackwardFill(
   prices: HistoricalPrice[],
   targetDate: string
 ): number | undefined {
@@ -87,16 +112,16 @@ function findPriceForwardFill(
   const exact = prices.find((p) => p.date === targetDate);
   if (exact) return exact.close;
 
-  // Forward-fill: earliest price after target date
-  const after = prices.filter((p) => p.date > targetDate);
-  if (after.length > 0) {
-    return after[0].close;
-  }
-
-  // Backward-fill as last resort: latest price before target date
+  // Backward-fill: latest price before target date
   const before = prices.filter((p) => p.date < targetDate);
   if (before.length > 0) {
     return before[before.length - 1].close;
+  }
+
+  // Forward-fill as last resort: earliest price after target date
+  const after = prices.filter((p) => p.date > targetDate);
+  if (after.length > 0) {
+    return after[0].close;
   }
 
   return undefined;
@@ -129,7 +154,7 @@ export function usePortfolioValueHistory() {
       const assetClasses = symbols.map((s) => symbolSet.get(s)!);
 
       // Build price index
-      const priceIndex = await buildPriceIndex(symbols, assetClasses);
+      const priceIndex = await buildPriceIndex(symbols, assetClasses, transactions);
 
       // Compute daily values
       const dailyValues: PortfolioHistory[] = [];
@@ -138,7 +163,7 @@ export function usePortfolioValueHistory() {
         let totalValue = 0;
         for (const h of holdings) {
           const prices = priceIndex.get(h.symbol) ?? [];
-          const price = findPriceForwardFill(prices, date);
+          const price = findPriceBackwardFill(prices, date);
           if (price !== undefined) {
             totalValue += h.quantity * price;
           }
