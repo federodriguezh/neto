@@ -4,6 +4,7 @@ import { useAccounts } from '../hooks/useAccounts';
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '../db';
 import type { Transaction } from '../types';
 import TransactionForm from '../components/TransactionForm';
+import { calculateRealizedPnl } from '../utils/realizedPnl';
 
 export default function TransactionsPage() {
   const { accounts } = useAccounts();
@@ -24,14 +25,28 @@ export default function TransactionsPage() {
   }, [refresh]);
 
   const handleAdd = async (tx: Omit<Transaction, 'id'>) => {
-    await addTransaction(tx);
+    let txToSave: Omit<Transaction, 'id'> = tx;
+    if (tx.type === 'sell') {
+      const allTxs = await getTransactions();
+      const pnl = calculateRealizedPnl(tx as Transaction, allTxs);
+      txToSave = { ...tx, realizedPnl: pnl };
+    }
+    await addTransaction(txToSave);
     await refresh();
     setShowForm(false);
   };
 
   const handleUpdate = async (tx: Omit<Transaction, 'id'>) => {
     if (editing?.id !== undefined) {
-      await updateTransaction(editing.id, tx);
+      let changes: Partial<Transaction> = tx;
+      if (tx.type === 'sell') {
+        const allTxs = (await getTransactions()).filter((t) => t.id !== editing.id);
+        const pnl = calculateRealizedPnl({ ...tx, id: editing.id } as Transaction, allTxs);
+        changes = { ...tx, realizedPnl: pnl };
+      } else {
+        changes = { ...tx, realizedPnl: undefined };
+      }
+      await updateTransaction(editing.id, changes);
       await refresh();
       setEditing(undefined);
     }
@@ -84,6 +99,7 @@ export default function TransactionsPage() {
               <th className="px-4 py-3 font-medium">Qty</th>
               <th className="px-4 py-3 font-medium">Price</th>
               <th className="px-4 py-3 font-medium">Fees</th>
+              <th className="px-4 py-3 font-medium">Realized P&L</th>
               <th className="px-4 py-3 font-medium"></th>
             </tr>
           </thead>
@@ -104,6 +120,15 @@ export default function TransactionsPage() {
                 <td className="px-4 py-3 text-slate-300">${tx.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                 <td className="px-4 py-3 text-slate-300">${tx.fees.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                 <td className="px-4 py-3">
+                  {tx.type === 'sell' && tx.realizedPnl !== undefined ? (
+                    <span className={`font-medium ${tx.realizedPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {tx.realizedPnl >= 0 ? '+' : ''}${tx.realizedPnl.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </span>
+                  ) : (
+                    <span className="text-slate-500">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
                   <div className="flex gap-2">
                     <button
                       onClick={() => setEditing(tx)}
@@ -123,7 +148,7 @@ export default function TransactionsPage() {
             ))}
             {transactions.length === 0 && !loading && (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-slate-500">No transactions yet.</td>
+                <td colSpan={9} className="px-4 py-6 text-center text-slate-500">No transactions yet.</td>
               </tr>
             )}
           </tbody>

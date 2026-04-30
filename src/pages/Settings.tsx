@@ -7,20 +7,28 @@ import ImportExport from '../components/ImportExport';
 export default function SettingsPage() {
   const { accounts, create, update, remove } = useAccounts();
   const [newAccountName, setNewAccountName] = useState('');
+  const [newFeeType, setNewFeeType] = useState<'fixed' | 'percentage'>('fixed');
+  const [newFeeValue, setNewFeeValue] = useState('0');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [editingFeeType, setEditingFeeType] = useState<'fixed' | 'percentage'>('fixed');
+  const [editingFeeValue, setEditingFeeValue] = useState('0');
 
   const handleCreate = async () => {
     if (!newAccountName.trim()) return;
-    await create(newAccountName.trim());
+    await create(newAccountName.trim(), newFeeType, Number(newFeeValue));
     setNewAccountName('');
+    setNewFeeType('fixed');
+    setNewFeeValue('0');
   };
 
   const handleUpdate = async (id: number) => {
     if (!editingName.trim()) return;
-    await update(id, editingName.trim());
+    await update(id, { name: editingName.trim(), feeType: editingFeeType, feeValue: Number(editingFeeValue) });
     setEditingId(null);
     setEditingName('');
+    setEditingFeeType('fixed');
+    setEditingFeeValue('0');
   };
 
   const handleClearAll = async () => {
@@ -36,21 +44,43 @@ export default function SettingsPage() {
 
       <div className="rounded-xl bg-slate-800 p-4">
         <h2 className="mb-3 text-sm font-medium text-slate-200">Accounts</h2>
-        <div className="mb-4 flex gap-2">
-          <input
-            className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
-            placeholder="New account name"
-            value={newAccountName}
-            onChange={(e) => setNewAccountName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-          />
-          <button
-            onClick={handleCreate}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
-          >
-            <Plus size={16} />
-            Add
-          </button>
+        <div className="mb-4 flex flex-col gap-2">
+          <div className="flex gap-2">
+            <input
+              className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
+              placeholder="New account name"
+              value={newAccountName}
+              onChange={(e) => setNewAccountName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+            />
+            <button
+              onClick={handleCreate}
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
+            >
+              <Plus size={16} />
+              Add
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <select
+              className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
+              value={newFeeType}
+              onChange={(e) => setNewFeeType(e.target.value as 'fixed' | 'percentage')}
+            >
+              <option value="fixed">Fixed Fee (ARS)</option>
+              <option value="percentage">Percentage (%)</option>
+            </select>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
+              placeholder={newFeeType === 'fixed' ? 'Fixed amount in ARS' : 'Percentage (e.g. 0.5)'}
+              value={newFeeValue}
+              onChange={(e) => setNewFeeValue(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+            />
+          </div>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -60,33 +90,65 @@ export default function SettingsPage() {
               className="flex items-center justify-between rounded-lg bg-slate-900 px-3 py-2"
             >
               {editingId === account.id ? (
-                <div className="flex flex-1 items-center gap-2">
-                  <input
-                    className="flex-1 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 border border-slate-700"
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && account.id !== undefined && handleUpdate(account.id)}
-                    autoFocus
-                  />
-                  <button
-                    onClick={() => account.id !== undefined && handleUpdate(account.id)}
-                    className="text-xs font-medium text-emerald-400 hover:text-emerald-300"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => { setEditingId(null); setEditingName(''); }}
-                    className="text-xs font-medium text-slate-400 hover:text-slate-300"
-                  >
-                    Cancel
-                  </button>
+                <div className="flex flex-1 flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="flex-1 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 border border-slate-700"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && account.id !== undefined && handleUpdate(account.id)}
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => account.id !== undefined && handleUpdate(account.id)}
+                      className="text-xs font-medium text-emerald-400 hover:text-emerald-300"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => { setEditingId(null); setEditingName(''); setEditingFeeType('fixed'); setEditingFeeValue('0'); }}
+                      className="text-xs font-medium text-slate-400 hover:text-slate-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      className="rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 border border-slate-700"
+                      value={editingFeeType}
+                      onChange={(e) => setEditingFeeType(e.target.value as 'fixed' | 'percentage')}
+                    >
+                      <option value="fixed">Fixed Fee (ARS)</option>
+                      <option value="percentage">Percentage (%)</option>
+                    </select>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      className="flex-1 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 border border-slate-700"
+                      placeholder={editingFeeType === 'fixed' ? 'Fixed amount in ARS' : 'Percentage (e.g. 0.5)'}
+                      value={editingFeeValue}
+                      onChange={(e) => setEditingFeeValue(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && account.id !== undefined && handleUpdate(account.id)}
+                    />
+                  </div>
                 </div>
               ) : (
                 <>
-                  <span className="text-sm text-slate-200">{account.name}</span>
+                  <div className="flex flex-col">
+                    <span className="text-sm text-slate-200">{account.name}</span>
+                    <span className="text-xs text-slate-500">
+                      {account.feeType === 'fixed' ? `$${account.feeValue} fixed` : `${account.feeValue}%`}
+                    </span>
+                  </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => { setEditingId(account.id ?? null); setEditingName(account.name); }}
+                      onClick={() => {
+                        setEditingId(account.id ?? null);
+                        setEditingName(account.name);
+                        setEditingFeeType(account.feeType);
+                        setEditingFeeValue(account.feeValue.toString());
+                      }}
                       className="text-slate-400 hover:text-slate-200 transition-colors"
                     >
                       <Pencil size={14} />

@@ -16,14 +16,14 @@ export function useAccounts() {
     refresh();
   }, [refresh]);
 
-  const create = useCallback(async (name: string) => {
-    const id = await addAccount({ name, createdAt: new Date().toISOString().split('T')[0] });
+  const create = useCallback(async (name: string, feeType: 'fixed' | 'percentage' = 'fixed', feeValue: number = 0) => {
+    const id = await addAccount({ name, createdAt: new Date().toISOString().split('T')[0], feeType, feeValue });
     await refresh();
     return id;
   }, [refresh]);
 
-  const update = useCallback(async (id: number, name: string) => {
-    await updateAccount(id, { name });
+  const update = useCallback(async (id: number, changes: Partial<Account>) => {
+    await updateAccount(id, changes);
     await refresh();
   }, [refresh]);
 

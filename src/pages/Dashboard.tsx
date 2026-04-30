@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Receipt } from 'lucide-react';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { useLivePrices } from '../hooks/useLivePrices';
 import { usePortfolioValueHistory } from '../hooks/usePortfolioValueHistory';
@@ -8,7 +8,7 @@ import PortfolioChart from '../components/PortfolioChart';
 import HoldingsTable from '../components/HoldingsTable';
 
 export default function Dashboard() {
-  const { holdings, loading: holdingsLoading } = usePortfolio();
+  const { holdings, totalRealizedPnl, loading: holdingsLoading } = usePortfolio();
   const { history, loading: historyLoading } = usePortfolioValueHistory();
 
   const symbols = useMemo(() => holdings.map((h) => h.symbol), [holdings]);
@@ -40,7 +40,7 @@ export default function Dashboard() {
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold text-slate-100">Dashboard</h1>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl bg-slate-800 p-4">
           <div className="mb-2 flex items-center gap-2 text-slate-400">
             <Wallet size={16} />
@@ -68,6 +68,16 @@ export default function Dashboard() {
           </div>
           <div className={`text-2xl font-bold ${dailyChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
             {isLoading ? '—' : `${dailyChangePercent >= 0 ? '+' : ''}${dailyChangePercent.toFixed(2)}%`}
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-slate-800 p-4">
+          <div className="mb-2 flex items-center gap-2 text-slate-400">
+            <Receipt size={16} />
+            <span className="text-xs font-medium uppercase tracking-wider">Total Realized P&L</span>
+          </div>
+          <div className={`text-2xl font-bold ${totalRealizedPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {holdingsLoading ? '—' : `${totalRealizedPnl >= 0 ? '+' : ''}$${totalRealizedPnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
           </div>
         </div>
       </div>

@@ -8,7 +8,6 @@ import type {
 } from './schema';
 
 const DB_NAME = 'neto-db';
-const DB_VERSION = 1;
 
 interface NetoDatabase extends Dexie {
   accounts: EntityTable<Account, 'id'>;
@@ -20,12 +19,25 @@ interface NetoDatabase extends Dexie {
 
 const db = new Dexie(DB_NAME) as NetoDatabase;
 
-db.version(DB_VERSION).stores({
+db.version(1).stores({
   accounts: '++id, name, createdAt',
   transactions: '++id, date, accountId, symbol, assetClass, type',
   historicalPrices: '[symbol+date], symbol, date, close',
   portfolioHistory: 'date, value',
   priceCache: 'symbol, price, timestamp',
+});
+
+db.version(2).stores({
+  accounts: '++id, name, createdAt',
+  transactions: '++id, date, accountId, symbol, assetClass, type',
+  historicalPrices: '[symbol+date], symbol, date, close',
+  portfolioHistory: 'date, value',
+  priceCache: 'symbol, price, timestamp',
+}).upgrade((tx) => {
+  return tx.table('accounts').toCollection().modify((account: Account) => {
+    account.feeType = 'fixed';
+    account.feeValue = 0;
+  });
 });
 
 export { db };

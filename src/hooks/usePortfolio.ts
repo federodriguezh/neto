@@ -59,5 +59,11 @@ export function usePortfolio(date?: string) {
     return result;
   }, [transactions]);
 
-  return { holdings, loading, refresh };
+  const totalRealizedPnl = useMemo(() => {
+    return transactions.reduce((sum, tx) => {
+      return tx.type === 'sell' && tx.realizedPnl !== undefined ? sum + tx.realizedPnl : sum;
+    }, 0);
+  }, [transactions]);
+
+  return { holdings, transactions, totalRealizedPnl, loading, refresh };
 }

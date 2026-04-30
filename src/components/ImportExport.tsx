@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { Download, Upload } from 'lucide-react';
 import { db } from '../db';
+import type { Account } from '../types';
 
 export default function ImportExport() {
   const handleExport = useCallback(async () => {
@@ -44,7 +45,14 @@ export default function ImportExport() {
     const text = await file.text();
     try {
       const data = JSON.parse(text);
-      if (data.accounts) await db.accounts.bulkPut(data.accounts);
+      if (data.accounts) {
+        const accounts = data.accounts.map((a: Account) => ({
+          ...a,
+          feeType: a.feeType ?? 'fixed',
+          feeValue: a.feeValue ?? 0,
+        }));
+        await db.accounts.bulkPut(accounts);
+      }
       if (data.transactions) await db.transactions.bulkPut(data.transactions);
       if (data.historicalPrices) await db.historicalPrices.bulkPut(data.historicalPrices);
       if (data.portfolioHistory) await db.portfolioHistory.bulkPut(data.portfolioHistory);

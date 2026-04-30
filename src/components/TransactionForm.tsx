@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { AssetClass, TransactionType, Transaction, Account } from '../types';
+import { calculateFees } from '../utils/fees';
 
 interface TransactionFormProps {
   accounts: Account[];
@@ -23,6 +24,39 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
   const [quantity, setQuantity] = useState(initial?.quantity.toString() ?? '');
   const [price, setPrice] = useState(initial?.price.toString() ?? '');
   const [fees, setFees] = useState(initial?.fees.toString() ?? '0');
+  const feesManuallyEdited = useRef(false);
+
+  useEffect(() => {
+    setAccountId(initial?.accountId ?? (accounts[0]?.id || 0));
+    setSymbol(initial?.symbol ?? '');
+    setAssetClass(initial?.assetClass ?? 'arg_stocks');
+    setType(initial?.type ?? 'buy');
+    setDate(initial?.date ?? new Date().toISOString().split('T')[0]);
+    setQuantity(initial?.quantity.toString() ?? '');
+    setPrice(initial?.price.toString() ?? '');
+    setFees(initial?.fees.toString() ?? '0');
+    feesManuallyEdited.current = false;
+  }, [initial, accounts]);
+
+  const account = accounts.find((a) => a.id === accountId);
+
+  useEffect(() => {
+    if (feesManuallyEdited.current) return;
+    const qtyNum = Number(quantity);
+    const priceNum = Number(price);
+    if (!account || qtyNum <= 0 || priceNum <= 0) return;
+
+    const autoFees = calculateFees(
+      { accountId, symbol: symbol.trim().toUpperCase(), assetClass, type, date, quantity: qtyNum, price: priceNum, fees: 0, currency: 'ARS' },
+      account
+    );
+    setFees(autoFees.toFixed(2));
+  }, [accountId, assetClass, type, quantity, price, account, date, symbol]);
+
+  const handleFeesChange = (value: string) => {
+    feesManuallyEdited.current = true;
+    setFees(value);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,7 +170,7 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
             step="any"
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
             value={fees}
-            onChange={(e) => setFees(e.target.value)}
+            onChange={(e) => handleFeesChange(e.target.value)}
           />
         </div>
       </div>
