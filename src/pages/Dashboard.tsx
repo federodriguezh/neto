@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { useLivePrices } from '../hooks/useLivePrices';
 import { usePortfolioValueHistory } from '../hooks/usePortfolioValueHistory';
+import { useYesterdayCloses } from '../hooks/useYesterdayCloses';
 import PortfolioChart from '../components/PortfolioChart';
 import HoldingsTable from '../components/HoldingsTable';
 
@@ -13,6 +14,7 @@ export default function Dashboard() {
   const symbols = useMemo(() => holdings.map((h) => h.symbol), [holdings]);
   const assetClasses = useMemo(() => holdings.map((h) => h.assetClass), [holdings]);
   const { prices, loading: pricesLoading, error: pricesError } = useLivePrices(symbols, assetClasses);
+  const yesterdayPrices = useYesterdayCloses(symbols);
 
   const totalValue = useMemo(() => {
     return holdings.reduce((sum, h) => {
@@ -22,17 +24,14 @@ export default function Dashboard() {
   }, [holdings, prices]);
 
   const dailyChange = useMemo(() => {
-    if (history.length < 2) return 0;
-    const today = history[history.length - 1]?.value ?? 0;
-    const yesterday = history[history.length - 2]?.value ?? 0;
-    return today - yesterday;
-  }, [history]);
+    const yesterdayValue = history.length >= 2 ? history[history.length - 2].value : 0;
+    return yesterdayValue > 0 ? totalValue - yesterdayValue : 0;
+  }, [history, totalValue]);
 
   const dailyChangePercent = useMemo(() => {
-    if (history.length < 2) return 0;
-    const yesterday = history[history.length - 2]?.value ?? 0;
-    if (yesterday === 0) return 0;
-    return (dailyChange / yesterday) * 100;
+    const yesterdayValue = history.length >= 2 ? history[history.length - 2].value : 0;
+    if (yesterdayValue === 0) return 0;
+    return (dailyChange / yesterdayValue) * 100;
   }, [history, dailyChange]);
 
   const isLoading = holdingsLoading || historyLoading || pricesLoading;
@@ -80,7 +79,7 @@ export default function Dashboard() {
       )}
 
       <PortfolioChart history={history} />
-      <HoldingsTable holdings={holdings} prices={prices} />
+      <HoldingsTable holdings={holdings} prices={prices} yesterdayPrices={yesterdayPrices} />
     </div>
   );
 }

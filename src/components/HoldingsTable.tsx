@@ -4,17 +4,20 @@ import type { Holding } from '../types';
 interface HoldingsTableProps {
   holdings: Holding[];
   prices: Record<string, number>;
+  yesterdayPrices?: Record<string, number>;
 }
 
-export default function HoldingsTable({ holdings, prices }: HoldingsTableProps) {
+export default function HoldingsTable({ holdings, prices, yesterdayPrices }: HoldingsTableProps) {
   const rows = useMemo(() => {
     return holdings.map((h) => {
       const livePrice = prices[h.symbol] ?? 0;
       const marketValue = h.quantity * livePrice;
       const unrealizedPnl = marketValue - h.quantity * h.avgCost;
-      return { ...h, livePrice, marketValue, unrealizedPnl };
+      const yClose = yesterdayPrices?.[h.symbol];
+      const dailyChgPct = yClose && yClose > 0 ? ((livePrice - yClose) / yClose) * 100 : null;
+      return { ...h, livePrice, marketValue, unrealizedPnl, dailyChgPct };
     });
-  }, [holdings, prices]);
+  }, [holdings, prices, yesterdayPrices]);
 
   const totalMarketValue = useMemo(() => rows.reduce((sum, r) => sum + r.marketValue, 0), [rows]);
   const totalUnrealizedPnl = useMemo(() => rows.reduce((sum, r) => sum + r.unrealizedPnl, 0), [rows]);
@@ -30,6 +33,7 @@ export default function HoldingsTable({ holdings, prices }: HoldingsTableProps) 
             <th className="px-4 py-3 font-medium">Live Price</th>
             <th className="px-4 py-3 font-medium">Market Value</th>
             <th className="px-4 py-3 font-medium">Unrealized P&L</th>
+            <th className="px-4 py-3 font-medium">Daily Chg %</th>
           </tr>
         </thead>
         <tbody>
@@ -45,11 +49,16 @@ export default function HoldingsTable({ holdings, prices }: HoldingsTableProps) 
               <td className={`px-4 py-3 font-medium ${row.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {row.unrealizedPnl >= 0 ? '+' : ''}${row.unrealizedPnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </td>
+              <td className={`px-4 py-3 font-medium ${
+                row.dailyChgPct === null ? 'text-slate-500' : row.dailyChgPct >= 0 ? 'text-emerald-400' : 'text-rose-400'
+              }`}>
+                {row.dailyChgPct === null ? '—' : `${row.dailyChgPct >= 0 ? '+' : ''}${row.dailyChgPct.toFixed(2)}%`}
+              </td>
             </tr>
           ))}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={6} className="px-4 py-6 text-center text-slate-500">No holdings yet. Add a transaction to get started.</td>
+              <td colSpan={7} className="px-4 py-6 text-center text-slate-500">No holdings yet. Add a transaction to get started.</td>
             </tr>
           )}
         </tbody>
@@ -61,6 +70,7 @@ export default function HoldingsTable({ holdings, prices }: HoldingsTableProps) 
               <td className={`px-4 py-3 ${totalUnrealizedPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {totalUnrealizedPnl >= 0 ? '+' : ''}${totalUnrealizedPnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </td>
+              <td className="px-4 py-3 text-slate-500">—</td>
             </tr>
           </tfoot>
         )}
