@@ -115,3 +115,7 @@ export async function putPriceCache(entry: PriceCacheEntry): Promise<void> {
 export async function getAllPriceCache(): Promise<PriceCacheEntry[]> {
   return db.priceCache.toArray();
 }
+
+export async function clearPriceCache(): Promise<void> {
+  await db.priceCache.clear();
+}

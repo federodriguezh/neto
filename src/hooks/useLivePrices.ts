@@ -25,12 +25,34 @@ export function useLivePrices(symbols: string[], assetClasses: AssetClass[]) {
   }, [symbols, assetClasses]);
 
   useEffect(() => {
-    fetchPrices();
-    intervalRef.current = setInterval(fetchPrices, 60_000);
+    let cancelled = false;
+    async function load() {
+      if (symbols.length === 0) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await fetchLivePricesForSymbols(symbols, assetClasses);
+        if (!cancelled) {
+          setPrices(data.prices);
+          setPctChanges(data.pctChanges);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : 'Unknown error');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+    load();
+    intervalRef.current = setInterval(load, 60_000);
     return () => {
+      cancelled = true;
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [fetchPrices]);
+  }, [symbols.join(','), assetClasses.join(',')]);
 
   return { prices, pctChanges, loading, error, refetch: fetchPrices };
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Pencil, Trash2, AlertTriangle, RotateCcw } from 'lucide-react';
 import { useAccounts } from '../hooks/useAccounts';
-import { db } from '../db';
+import { db, clearPriceCache } from '../db';
 import ImportExport from '../components/ImportExport';
 
 export default function SettingsPage() {
@@ -35,6 +35,13 @@ export default function SettingsPage() {
     if (confirm('WARNING: This will permanently delete ALL data. Are you sure?')) {
       await db.delete();
       window.location.reload();
+    }
+  };
+
+  const handleClearPriceCache = async () => {
+    if (confirm('This will clear the cached live prices. Prices will be re-fetched on next refresh. Continue?')) {
+      await clearPriceCache();
+      alert('Price cache cleared.');
     }
   };
 
@@ -171,6 +178,17 @@ export default function SettingsPage() {
       </div>
 
       <ImportExport />
+
+      <div className="rounded-xl bg-slate-800 p-4">
+        <h2 className="mb-3 text-sm font-medium text-slate-200">Data Maintenance</h2>
+        <button
+          onClick={handleClearPriceCache}
+          className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
+        >
+          <RotateCcw size={16} />
+          Clear Price Cache
+        </button>
+      </div>
 
       <div className="rounded-xl bg-slate-800 p-4">
         <h2 className="mb-3 text-sm font-medium text-slate-200">Danger Zone</h2>

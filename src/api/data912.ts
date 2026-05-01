@@ -105,7 +105,9 @@ export async function fetchLivePricesForSymbols(
     }
   }
 
-  const missingSymbols = symbols.filter((s) => priceMap[s] === undefined);
+  const missingSymbols = symbols.filter(
+    (s) => priceMap[s] === undefined || pctChangeMap[s] === undefined
+  );
   if (missingSymbols.length === 0) return { prices: priceMap, pctChanges: pctChangeMap };
 
   // Determine which asset classes to fetch

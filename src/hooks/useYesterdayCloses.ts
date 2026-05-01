@@ -6,6 +6,7 @@ export function useYesterdayCloses(symbols: string[]) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       setLoading(true);
       const result: Record<string, number> = {};
@@ -20,8 +21,10 @@ export function useYesterdayCloses(symbols: string[]) {
           result[symbol] = prices[0].open;
         }
       }
-      setYesterdayPrices(result);
-      setLoading(false);
+      if (!cancelled) {
+        setYesterdayPrices(result);
+        setLoading(false);
+      }
     }
     if (symbols.length > 0) {
       load();
@@ -29,6 +32,7 @@ export function useYesterdayCloses(symbols: string[]) {
       setYesterdayPrices({});
       setLoading(false);
     }
+    return () => { cancelled = true; };
   }, [symbols.join(',')]);
 
   return { yesterdayPrices, loading };
