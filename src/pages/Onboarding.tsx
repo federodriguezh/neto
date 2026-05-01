@@ -69,8 +69,31 @@ export default function OnboardingPage() {
           <Cloud size={18} className="text-sky-400" />
           <h2 className="text-lg font-semibold text-slate-200">{t('onboarding.sync.title')}</h2>
         </div>
-        <p className="text-sm text-slate-300 leading-relaxed mb-3">{t('onboarding.sync.body')}</p>
-        <p className="text-xs text-slate-500">{t('onboarding.sync.security')}</p>
+        <p className="text-sm text-slate-300 leading-relaxed mb-4">{t('onboarding.sync.body')}</p>
+
+        <h3 className="mb-3 text-sm font-semibold text-slate-200">{t('onboarding.syncGuide.title')}</h3>
+        <div className="flex flex-col gap-4">
+          {[
+            { title: t('onboarding.syncGuide.step1.title'), body: t('onboarding.syncGuide.step1.body') },
+            { title: t('onboarding.syncGuide.step2.title'), body: t('onboarding.syncGuide.step2.body') },
+            { title: t('onboarding.syncGuide.step3.title'), body: t('onboarding.syncGuide.step3.body') },
+            { title: t('onboarding.syncGuide.step4.title'), body: t('onboarding.syncGuide.step4.body') },
+            { title: t('onboarding.syncGuide.step5.title'), body: t('onboarding.syncGuide.step5.body') },
+            { title: t('onboarding.syncGuide.step6.title'), body: t('onboarding.syncGuide.step6.body') },
+          ].map((step, i) => (
+            <div key={i} className="flex gap-3">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-900/40 text-xs font-bold text-sky-400">
+                {i + 1}
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-slate-200">{step.title}</span>
+                <p className="text-sm text-slate-400 leading-relaxed">{step.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-4 text-xs text-slate-500">{t('onboarding.syncGuide.whyGithub')}</p>
       </div>
 
       {/* Single Device */}

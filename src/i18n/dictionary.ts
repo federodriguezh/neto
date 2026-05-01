@@ -143,6 +143,22 @@ export const en: Record<string, string> = {
   'onboarding.singleDevice.body': 'If you only use one device, you do not need to set up sync. Your portfolio is stored locally in this browser. You can still export your data as JSON or CSV anytime.',
   'onboarding.dismiss': 'Got it, take me to the app',
 
+  // GitHub Token Guide
+  'onboarding.syncGuide.title': 'How to Set Up GitHub Sync',
+  'onboarding.syncGuide.step1.title': 'Step 1: Create a GitHub account',
+  'onboarding.syncGuide.step1.body': 'If you do not have one, go to github.com and sign up. It is free and takes 2 minutes. You only need an email and a password.',
+  'onboarding.syncGuide.step2.title': 'Step 2: Open Developer Settings',
+  'onboarding.syncGuide.step2.body': 'Click your profile picture (top right corner) → Settings → scroll all the way down to Developer settings → Personal access tokens → Tokens (classic) → Generate new token (classic).',
+  'onboarding.syncGuide.step3.title': 'Step 3: Select the gist scope',
+  'onboarding.syncGuide.step3.body': 'Give your token a name like "neto sync". Check only the "gist" checkbox. This lets neto create a private encrypted file (called a Gist) to store your portfolio. Do not check any other boxes. Then click Generate token.',
+  'onboarding.syncGuide.step4.title': 'Step 4: Copy your token',
+  'onboarding.syncGuide.step4.body': 'You will see a long text starting with "ghp_". Copy it immediately — GitHub only shows it once. Paste it into the "GitHub Personal Access Token" field in Settings → Encrypted Cloud Sync.',
+  'onboarding.syncGuide.step5.title': 'Step 5: Choose a passphrase',
+  'onboarding.syncGuide.step5.body': 'This password encrypts your data before it leaves your device. Use a strong password you can remember. You must enter the exact same passphrase on every device you want to sync.',
+  'onboarding.syncGuide.step6.title': 'Step 6: Enable sync',
+  'onboarding.syncGuide.step6.body': 'Click "Enable Sync". That is it. neto will create an encrypted file on GitHub and sync your portfolio automatically every hour. On your other device, repeat these same steps with the same token and passphrase.',
+  'onboarding.syncGuide.whyGithub': 'Why GitHub? Because it is free, reliable, and neto only stores an encrypted blob that even GitHub cannot read. Your actual portfolio data never leaves your device unencrypted.',
+
   // Misc
   'misc.yes': 'Yes',
   'misc.no': 'No',
@@ -295,6 +311,22 @@ export const es: Record<string, string> = {
   'onboarding.singleDevice.title': 'Un Solo Dispositivo',
   'onboarding.singleDevice.body': 'Si solo usas un dispositivo, no necesitas configurar la sincronización. Tu portfolio se almacena localmente en este navegador. Aún puedes exportar tus datos como JSON o CSV en cualquier momento.',
   'onboarding.dismiss': 'Entendido, llevarme a la app',
+
+  // GitHub Token Guide
+  'onboarding.syncGuide.title': 'Cómo Configurar la Sincronización con GitHub',
+  'onboarding.syncGuide.step1.title': 'Paso 1: Crear una cuenta de GitHub',
+  'onboarding.syncGuide.step1.body': 'Si no tenés una, andá a github.com y registrate. Es gratis y tarda 2 minutos. Solo necesitás un email y una contraseña.',
+  'onboarding.syncGuide.step2.title': 'Paso 2: Abrir Configuración de Desarrollador',
+  'onboarding.syncGuide.step2.body': 'Hacé clic en tu foto de perfil (arriba a la derecha) → Settings → bajá hasta el final a Developer settings → Personal access tokens → Tokens (classic) → Generate new token (classic).',
+  'onboarding.syncGuide.step3.title': 'Paso 3: Seleccionar el alcance gist',
+  'onboarding.syncGuide.step3.body': 'Ponéle un nombre al token como "neto sync". Marcá solo la casilla "gist". Esto permite que neto cree un archivo privado encriptado (llamado Gist) para guardar tu portfolio. No marques ninguna otra casilla. Luego hacé clic en Generate token.',
+  'onboarding.syncGuide.step4.title': 'Paso 4: Copiar tu token',
+  'onboarding.syncGuide.step4.body': 'Vas a ver un texto largo que empieza con "ghp_". Copialo inmediatamente — GitHub solo lo muestra una vez. Pegalo en el campo "Token de Acceso Personal de GitHub" en Configuración → Sincronización Encriptada en la Nube.',
+  'onboarding.syncGuide.step5.title': 'Paso 5: Elegir una contraseña',
+  'onboarding.syncGuide.step5.body': 'Esta contraseña encripta tus datos antes de salir de tu dispositivo. Usá una contraseña fuerte que puedas recordar. Tenés que ingresar exactamente la misma contraseña en cada dispositivo que quieras sincronizar.',
+  'onboarding.syncGuide.step6.title': 'Paso 6: Activar la sincronización',
+  'onboarding.syncGuide.step6.body': 'Hacé clic en "Activar Sincro". Eso es todo. neto va a crear un archivo encriptado en GitHub y sincronizar tu portfolio automáticamente cada hora. En tu otro dispositivo, repetí estos mismos pasos con el mismo token y la misma contraseña.',
+  'onboarding.syncGuide.whyGithub': '¿Por qué GitHub? Porque es gratis, confiable, y neto solo guarda un blob encriptado que ni siquiera GitHub puede leer. Tus datos reales del portfolio nunca salen de tu dispositivo sin encriptar.',
 
   // Misc
   'misc.yes': 'Sí',
