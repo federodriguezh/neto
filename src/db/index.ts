@@ -8,6 +8,7 @@ import type {
   Preference,
   ExchangeRate,
 } from './schema';
+import { normalizeDate } from '../utils/date';
 
 const DB_NAME = 'neto-db';
 
@@ -114,12 +115,17 @@ export async function getAccounts(): Promise<Account[]> {
 export async function addAccount(account: Omit<Account, 'id' | 'updatedAt'>): Promise<string> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
-  await db.accounts.add({ ...account, id, updatedAt: now });
+  const createdAt = normalizeDate(account.createdAt) || account.createdAt;
+  await db.accounts.add({ ...account, id, updatedAt: now, createdAt });
   return id;
 }
 
 export async function updateAccount(id: string, changes: Partial<Account>): Promise<void> {
-  await db.accounts.update(id, { ...changes, updatedAt: new Date().toISOString() });
+  const payload: Partial<Account> = { ...changes, updatedAt: new Date().toISOString() };
+  if (changes.createdAt) {
+    payload.createdAt = normalizeDate(changes.createdAt) || changes.createdAt;
+  }
+  await db.accounts.update(id, payload);
 }
 
 export async function deleteAccount(id: string): Promise<void> {
@@ -137,12 +143,17 @@ export async function getTransactionsUpToDate(date: string): Promise<Transaction
 export async function addTransaction(transaction: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'>): Promise<string> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
-  await db.transactions.add({ ...transaction, id, updatedAt: now, createdAt: now });
+  const date = normalizeDate(transaction.date) || transaction.date;
+  await db.transactions.add({ ...transaction, id, updatedAt: now, createdAt: now, date });
   return id;
 }
 
 export async function updateTransaction(id: string, changes: Partial<Transaction>): Promise<void> {
-  await db.transactions.update(id, { ...changes, updatedAt: new Date().toISOString() });
+  const payload: Partial<Transaction> = { ...changes, updatedAt: new Date().toISOString() };
+  if (changes.date) {
+    payload.date = normalizeDate(changes.date) || changes.date;
+  }
+  await db.transactions.update(id, payload);
 }
 
 export async function deleteTransaction(id: string): Promise<void> {

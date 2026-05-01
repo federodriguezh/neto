@@ -5,12 +5,17 @@ import Transactions from './pages/Transactions';
 import Settings from './pages/Settings';
 import Onboarding from './pages/Onboarding';
 import { getPreference } from './db';
+import { runDateRepair } from './utils/repairDates';
 
 type Route = 'dashboard' | 'transactions' | 'settings' | 'onboarding';
 
 export default function App() {
   const [route, setRoute] = useState<Route>('dashboard');
   const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    runDateRepair().catch(console.error);
+  }, []);
 
   useEffect(() => {
     async function check() {

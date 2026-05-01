@@ -1,5 +1,6 @@
 import type { AssetClass, TransactionType } from '../types';
-import { addAccount, getAccounts } from '../db';
+import { addAccount, getAccounts, db } from '../db';
+import { normalizeDate } from './date';
 
 interface CsvImportResult {
   transactions: Array<{
@@ -69,11 +70,18 @@ export async function importCsv(csvText: string): Promise<CsvImportResult> {
   const transactions: CsvImportResult['transactions'] = [];
   const errors: string[] = [];
 
+  // Load existing transactions for duplicate detection
+  const existingTxs = await db.transactions.toArray();
+  const existingKeySet = new Set(
+    existingTxs.map((t) => `${t.date}|${t.accountId}|${t.symbol}|${t.type}|${t.quantity}|${t.price}`)
+  );
+  const csvKeySet = new Set<string>();
+
   for (let rowIdx = 1; rowIdx < lines.length; rowIdx++) {
     const cols = parseCsvLine(lines[rowIdx]);
     if (cols.length === 1 && cols[0] === '') continue; // skip empty lines
 
-    const date = cols[colIndex.get('date')!]?.trim();
+    const dateRaw = cols[colIndex.get('date')!]?.trim();
     const accountName = cols[colIndex.get('account')!]?.trim();
     const symbol = cols[colIndex.get('symbol')!]?.trim().toUpperCase();
     const assetClass = cols[colIndex.get('assetclass')!]?.trim() as AssetClass;
@@ -87,7 +95,8 @@ export async function importCsv(csvText: string): Promise<CsvImportResult> {
     const rowNum = rowIdx + 1;
     const rowErrors: string[] = [];
 
-    if (!date) rowErrors.push('missing date');
+    const date = normalizeDate(dateRaw || '');
+    if (!date) rowErrors.push(`invalid date format: ${dateRaw || 'missing'}`);
     if (!accountName) rowErrors.push('missing account');
     if (!symbol) rowErrors.push('missing symbol');
     if (!VALID_ASSET_CLASSES.includes(assetClass)) rowErrors.push(`invalid assetClass: ${assetClass}`);
@@ -106,15 +115,28 @@ export async function importCsv(csvText: string): Promise<CsvImportResult> {
     if (!accountId) {
       accountId = await addAccount({
         name: accountName,
-        createdAt: date,
+        createdAt: date!,
         feeType: 'fixed',
         feeValue: 0,
       });
       accountMap.set(accountName.toLowerCase(), accountId);
     }
 
+    // Duplicate detection
+    const dupKey = `${date!}|${accountId}|${symbol}|${type}|${quantity}|${price}`;
+    if (existingKeySet.has(dupKey)) {
+      errors.push(`Row ${rowNum}: duplicate transaction (already exists in database)`);
+      continue;
+    }
+    if (csvKeySet.has(dupKey)) {
+      errors.push(`Row ${rowNum}: duplicate transaction (duplicate within CSV)`);
+      continue;
+    }
+    csvKeySet.add(dupKey);
+    existingKeySet.add(dupKey);
+
     transactions.push({
-      date,
+      date: date!,
       accountId,
       symbol,
       assetClass,

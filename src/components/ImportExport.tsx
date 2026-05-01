@@ -4,10 +4,14 @@ import { db, addTransaction } from '../db';
 import type { Account } from '../types';
 import { useTranslation } from '../i18n';
 import { importCsv } from '../utils/csvImport';
+import { normalizeDate } from '../utils/date';
 
 const CSV_TEMPLATE = `date,account,symbol,assetClass,type,quantity,price,fees,currency
 2024-01-15,MyBroker,GGAL,arg_stocks,buy,100,2500.50,12.63,ARS
-2024-02-20,MyBroker,GGAL,arg_stocks,sell,50,2800.00,7.42,ARS`;
+2024-02-20,MyBroker,GGAL,arg_stocks,sell,50,2800.00,7.42,ARS
+2024-03-10,MyBroker,AAPL,arg_cedears,buy,10,185.50,5.00,ARS
+2024-04-05,MyBroker,AL30,arg_bonds,buy,500,28.50,2.50,ARS
+2024-05-12,MyBroker,AAPL,arg_cedears,sell,5,190.00,3.00,ARS`;
 
 export default function ImportExport() {
   const { t } = useTranslation();
@@ -99,12 +103,19 @@ export default function ImportExport() {
       if (accounts.length > 0) {
         accounts = accounts.map((a: Account) => ({
           ...a,
+          createdAt: normalizeDate(a.createdAt) || a.createdAt,
           feeType: a.feeType ?? 'fixed',
           feeValue: a.feeValue ?? 0,
         }));
         await db.accounts.bulkPut(accounts);
       }
-      if (transactions.length > 0) await db.transactions.bulkPut(transactions);
+      if (transactions.length > 0) {
+        transactions = transactions.map((t: Record<string, unknown>) => ({
+          ...t,
+          date: normalizeDate(t.date as string) || t.date,
+        }));
+        await db.transactions.bulkPut(transactions);
+      }
       if (data.historicalPrices) await db.historicalPrices.bulkPut(data.historicalPrices);
       if (data.portfolioHistory) await db.portfolioHistory.bulkPut(data.portfolioHistory);
       if (data.preferences) await db.preferences.bulkPut(data.preferences);
