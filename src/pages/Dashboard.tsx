@@ -19,7 +19,7 @@ import type { Range } from '../components/RangeSelector';
 
 export default function Dashboard() {
   const { t } = useTranslation();
-  const { holdings, totalRealizedPnl, loading: holdingsLoading } = usePortfolio();
+  const { holdings, totalRealizedPnl, loading: holdingsLoading, shortPositions } = usePortfolio();
   const { history } = usePortfolioValueHistory();
   const { displayCurrency } = useDisplayCurrency();
 
@@ -141,6 +141,20 @@ export default function Dashboard() {
       {(pricesError || rateError) && (
         <div className="rounded-xl bg-rose-900/30 border border-rose-800 p-4 text-sm text-rose-300">
           <strong className="text-rose-200">{t('dashboard.dataUnavailable')}</strong> {pricesError ?? rateError}
+        </div>
+      )}
+
+      {shortPositions.length > 0 && (
+        <div className="rounded-xl bg-amber-900/30 border border-amber-800 p-4 text-sm text-amber-300">
+          <strong className="text-amber-200">{t('dashboard.shortPositions')}</strong>
+          <p className="mt-1 text-amber-300/80">{t('dashboard.shortPositionsDescription')}</p>
+          <ul className="mt-2 list-disc list-inside">
+            {shortPositions.map((s) => (
+              <li key={s.symbol}>
+                {s.symbol} ({s.assetClass}): {s.quantity.toLocaleString()} shares
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

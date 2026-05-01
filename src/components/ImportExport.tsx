@@ -1,10 +1,11 @@
 import { useCallback } from 'react';
 import { Download, Upload, FileSpreadsheet } from 'lucide-react';
 import { db, addTransaction } from '../db';
-import type { Account } from '../types';
+import type { Account, AssetClass, TransactionType } from '../types';
 import { useTranslation } from '../i18n';
 import { importCsv } from '../utils/csvImport';
 import { normalizeDate } from '../utils/date';
+import { calculateRealizedPnl } from '../utils/realizedPnl';
 
 const CSV_TEMPLATE = `date,account,symbol,assetClass,type,quantity,price,fees,currency
 2024-01-15,MyBroker,GGAL,arg_stocks,buy,100,2500.50,12.63,ARS
@@ -100,6 +101,54 @@ export default function ImportExport() {
         });
       }
 
+      // Validate transactions before import
+      const VALID_ASSET_CLASSES: AssetClass[] = ['arg_stocks', 'arg_cedears', 'arg_bonds'];
+      const VALID_TYPES: TransactionType[] = ['buy', 'sell'];
+      const importErrors: string[] = [];
+
+      transactions = transactions.map((t: Record<string, unknown>) => {
+        const tx = { ...t };
+        // Normalize type
+        if (typeof tx.type === 'string') {
+          tx.type = tx.type.toLowerCase().trim() as TransactionType;
+        }
+        // Normalize assetClass
+        if (typeof tx.assetClass === 'string') {
+          tx.assetClass = tx.assetClass.trim() as AssetClass;
+        }
+        // Normalize date
+        tx.date = normalizeDate(tx.date as string) || tx.date;
+        return tx;
+      });
+
+      for (let i = 0; i < transactions.length; i++) {
+        const tx = transactions[i] as Record<string, unknown>;
+        const rowNum = i + 1;
+        const rowErrors: string[] = [];
+        if (!VALID_TYPES.includes(tx.type as TransactionType)) rowErrors.push(`invalid type: ${tx.type}`);
+        if (!VALID_ASSET_CLASSES.includes(tx.assetClass as AssetClass)) rowErrors.push(`invalid assetClass: ${tx.assetClass}`);
+        const qty = Number(tx.quantity);
+        if (!Number.isFinite(qty) || qty <= 0) rowErrors.push(`invalid quantity: ${tx.quantity}`);
+        const price = Number(tx.price);
+        if (!Number.isFinite(price) || price <= 0) rowErrors.push(`invalid price: ${tx.price}`);
+        const fees = Number(tx.fees ?? 0);
+        if (!Number.isFinite(fees) || fees < 0) rowErrors.push(`invalid fees: ${tx.fees}`);
+        if (!tx.date || typeof tx.date !== 'string') rowErrors.push(`invalid date: ${tx.date}`);
+        if (rowErrors.length > 0) {
+          importErrors.push(`Tx ${rowNum}: ${rowErrors.join(', ')}`);
+        }
+      }
+
+      if (importErrors.length > 0) {
+        alert(`${t('import.validationErrors')}\n${importErrors.join('\n')}`);
+        return;
+      }
+
+      // Clear existing data before import to avoid stale records
+      await db.transactions.clear();
+      await db.accounts.clear();
+      await db.portfolioHistory.clear();
+
       if (accounts.length > 0) {
         accounts = accounts.map((a: Account) => ({
           ...a,
@@ -110,16 +159,21 @@ export default function ImportExport() {
         await db.accounts.bulkPut(accounts);
       }
       if (transactions.length > 0) {
-        transactions = transactions.map((t: Record<string, unknown>) => ({
-          ...t,
-          date: normalizeDate(t.date as string) || t.date,
-        }));
         await db.transactions.bulkPut(transactions);
       }
       if (data.historicalPrices) await db.historicalPrices.bulkPut(data.historicalPrices);
-      if (data.portfolioHistory) await db.portfolioHistory.bulkPut(data.portfolioHistory);
       if (data.preferences) await db.preferences.bulkPut(data.preferences);
       if (data.exchangeRates) await db.exchangeRates.bulkPut(data.exchangeRates);
+
+      // Compute realized P&L for all imported sells
+      const allTxs = await db.transactions.toArray();
+      for (const tx of allTxs) {
+        if (tx.type === 'sell') {
+          const pnl = calculateRealizedPnl(tx, allTxs);
+          await db.transactions.update(tx.id, { realizedPnl: pnl });
+        }
+      }
+
       window.location.reload();
     } catch {
       alert(t('import.invalidFile'));

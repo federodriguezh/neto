@@ -26,6 +26,8 @@ export const en: Record<string, string> = {
   'dashboard.value': 'Value',
   'dashboard.compareSpy': 'Compare to SPY',
   'dashboard.loading': '—',
+  'dashboard.shortPositions': 'Short / Orphan Positions',
+  'dashboard.shortPositionsDescription': 'These symbols have more sells than buys and are not included in holdings:',
 
   // Transactions
   'transactions.title': 'Transactions',
@@ -123,6 +125,7 @@ export const en: Record<string, string> = {
 
   // Import/Export
   'import.invalidFile': 'Invalid import file',
+  'import.validationErrors': 'Import validation failed:',
   'import.csv.success': 'Imported {{count}} rows, {{errors}} errors.',
   'import.csv.errors': 'Some rows had errors:',
 
@@ -195,6 +198,8 @@ export const es: Record<string, string> = {
   'dashboard.value': 'Valor',
   'dashboard.compareSpy': 'Comparar con SPY',
   'dashboard.loading': '—',
+  'dashboard.shortPositions': 'Posiciones Cortas / Huérfanas',
+  'dashboard.shortPositionsDescription': 'Estos símbolos tienen más ventas que compras y no se incluyen en las posiciones:',
 
   // Transactions
   'transactions.title': 'Transacciones',
@@ -292,6 +297,7 @@ export const es: Record<string, string> = {
 
   // Import/Export
   'import.invalidFile': 'Archivo de importación inválido',
+  'import.validationErrors': 'Error de validación de importación:',
   'import.csv.success': 'Importadas {{count}} filas, {{errors}} errores.',
   'import.csv.errors': 'Algunas filas tenían errores:',
 

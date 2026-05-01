@@ -19,7 +19,7 @@ export function usePortfolio(date?: string) {
     refresh();
   }, [refresh]);
 
-  const holdings = useMemo(() => {
+  const { holdings, shortPositions } = useMemo(() => {
     const map = new Map<string, { quantity: number; totalCost: number; assetClass: AssetClass }>();
 
     for (const tx of transactions) {
@@ -36,27 +36,34 @@ export function usePortfolio(date?: string) {
           existing.quantity += tx.quantity;
           existing.totalCost += tx.quantity * tx.price + tx.fees;
         } else {
+          // Sell: remove proportional cost basis instead of sale proceeds
+          const avgCostBefore = existing.totalCost / existing.quantity;
           existing.quantity -= tx.quantity;
-          existing.totalCost -= tx.quantity * tx.price - tx.fees;
+          existing.totalCost -= tx.quantity * avgCostBefore;
         }
       }
     }
 
     const result: Holding[] = [];
+    const shorts: { symbol: string; assetClass: AssetClass; quantity: number }[] = [];
+
     for (const [symbol, data] of map.entries()) {
-      if (data.quantity <= 0) continue;
-      const avgCost = data.totalCost / data.quantity;
-      result.push({
-        symbol,
-        assetClass: data.assetClass,
-        quantity: data.quantity,
-        avgCost,
-        marketValue: 0,
-        unrealizedPnl: 0,
-      });
+      if (data.quantity > 0) {
+        const avgCost = data.totalCost / data.quantity;
+        result.push({
+          symbol,
+          assetClass: data.assetClass,
+          quantity: data.quantity,
+          avgCost,
+          marketValue: 0,
+          unrealizedPnl: 0,
+        });
+      } else if (data.quantity < 0) {
+        shorts.push({ symbol, assetClass: data.assetClass, quantity: data.quantity });
+      }
     }
 
-    return result;
+    return { holdings: result, shortPositions: shorts };
   }, [transactions]);
 
   const totalRealizedPnl = useMemo(() => {
@@ -65,5 +72,5 @@ export function usePortfolio(date?: string) {
     }, 0);
   }, [transactions]);
 
-  return { holdings, transactions, totalRealizedPnl, loading, refresh };
+  return { holdings, transactions, totalRealizedPnl, loading, refresh, shortPositions };
 }
