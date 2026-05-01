@@ -1,5 +1,6 @@
 export type AssetClass = 'arg_stocks' | 'arg_cedears' | 'arg_bonds';
 export type TransactionType = 'buy' | 'sell';
+export type DisplayCurrency = 'ARS' | 'MEP' | 'CCL';
 
 export interface Account {
   id?: number;
@@ -40,6 +41,17 @@ export interface PriceCacheEntry {
   price: number;
   pctChange?: number;
   timestamp: number;
+}
+
+export interface Preference {
+  key: string;
+  value: unknown;
+}
+
+export interface ExchangeRate {
+  type: 'mep' | 'ccl';
+  date: string;
+  rate: number;
 }
 
 export interface Holding {

@@ -8,15 +8,17 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import type { PortfolioHistory } from '../types';
+import type { PortfolioHistory, DisplayCurrency } from '../types';
+import { formatCurrency, formatCurrencyCompact } from '../utils/currency';
 
 type Range = '30' | '90' | 'max';
 
 interface PortfolioChartProps {
   history: PortfolioHistory[];
+  displayCurrency: DisplayCurrency;
 }
 
-export default function PortfolioChart({ history }: PortfolioChartProps) {
+export default function PortfolioChart({ history, displayCurrency }: PortfolioChartProps) {
   const [range, setRange] = useState<Range>('30');
 
   const filtered = useMemo(() => {
@@ -33,7 +35,9 @@ export default function PortfolioChart({ history }: PortfolioChartProps) {
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
-  const formatCurrency = (value: number) => `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  const formatTooltip = (value: number) => [formatCurrency(value, displayCurrency), 'Value'];
+
+  const formatYAxis = (v: number) => formatCurrencyCompact(v, displayCurrency);
 
   if (filtered.length === 0) {
     return (
@@ -82,11 +86,11 @@ export default function PortfolioChart({ history }: PortfolioChartProps) {
               minTickGap={30}
             />
             <YAxis
-              tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
+              tickFormatter={formatYAxis}
               tick={{ fill: '#94a3b8', fontSize: 12 }}
               axisLine={false}
               tickLine={false}
-              width={50}
+              width={60}
             />
             <Tooltip
               contentStyle={{
@@ -95,7 +99,7 @@ export default function PortfolioChart({ history }: PortfolioChartProps) {
                 borderRadius: '8px',
                 color: '#f8fafc',
               }}
-              formatter={(value: number) => [formatCurrency(value), 'Value']}
+              formatter={(value: number) => formatTooltip(value)}
               labelFormatter={(label: string) => formatDate(label)}
             />
             <Area

@@ -1,22 +1,34 @@
 import { useMemo } from 'react';
-import type { Holding } from '../types';
+import type { Holding, DisplayCurrency } from '../types';
+import { convertArsToUsd, formatCurrency } from '../utils/currency';
 
 interface HoldingsTableProps {
   holdings: Holding[];
   prices: Record<string, number>;
   pctChanges: Record<string, number>;
+  displayCurrency: DisplayCurrency;
+  liveRate: number | null;
 }
 
-export default function HoldingsTable({ holdings, prices, pctChanges }: HoldingsTableProps) {
+export default function HoldingsTable({ holdings, prices, pctChanges, displayCurrency, liveRate }: HoldingsTableProps) {
+  const isUsd = displayCurrency !== 'ARS';
+  const rate = isUsd && liveRate ? liveRate : 1;
+
   const rows = useMemo(() => {
     return holdings.map((h) => {
-      const livePrice = prices[h.symbol] ?? 0;
-      const marketValue = h.quantity * livePrice;
-      const unrealizedPnl = marketValue - h.quantity * h.avgCost;
+      const livePriceArs = prices[h.symbol] ?? 0;
+      const marketValueArs = h.quantity * livePriceArs;
+      const unrealizedPnlArs = marketValueArs - h.quantity * h.avgCost;
       const dailyChgPct = pctChanges[h.symbol] ?? null;
-      return { ...h, livePrice, marketValue, unrealizedPnl, dailyChgPct };
+      return {
+        ...h,
+        livePrice: convertArsToUsd(livePriceArs, rate),
+        marketValue: convertArsToUsd(marketValueArs, rate),
+        unrealizedPnl: convertArsToUsd(unrealizedPnlArs, rate),
+        dailyChgPct,
+      };
     });
-  }, [holdings, prices, pctChanges]);
+  }, [holdings, prices, pctChanges, rate]);
 
   const totalMarketValue = useMemo(() => rows.reduce((sum, r) => sum + r.marketValue, 0), [rows]);
   const totalUnrealizedPnl = useMemo(() => rows.reduce((sum, r) => sum + r.unrealizedPnl, 0), [rows]);
@@ -40,13 +52,13 @@ export default function HoldingsTable({ holdings, prices, pctChanges }: Holdings
             <tr key={row.symbol} className="border-b border-slate-700/50 last:border-0">
               <td className="px-4 py-3 font-medium text-slate-100">{row.symbol}</td>
               <td className="px-4 py-3 text-slate-300">{row.quantity.toLocaleString()}</td>
-              <td className="px-4 py-3 text-slate-300">${row.avgCost.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+              <td className="px-4 py-3 text-slate-300">{formatCurrency(row.avgCost / rate, displayCurrency)}</td>
               <td className="px-4 py-3 text-slate-300">
-                {row.livePrice > 0 ? `$${row.livePrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'}
+                {row.livePrice > 0 ? formatCurrency(row.livePrice, displayCurrency) : '—'}
               </td>
-              <td className="px-4 py-3 text-slate-300">${row.marketValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+              <td className="px-4 py-3 text-slate-300">{formatCurrency(row.marketValue, displayCurrency)}</td>
               <td className={`px-4 py-3 font-medium ${row.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {row.unrealizedPnl >= 0 ? '+' : ''}${row.unrealizedPnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                {row.unrealizedPnl >= 0 ? '+' : ''}{formatCurrency(row.unrealizedPnl, displayCurrency)}
               </td>
               <td className={`px-4 py-3 font-medium ${
                 row.dailyChgPct === null ? 'text-slate-500' : row.dailyChgPct >= 0 ? 'text-emerald-400' : 'text-rose-400'
@@ -65,9 +77,9 @@ export default function HoldingsTable({ holdings, prices, pctChanges }: Holdings
           <tfoot>
             <tr className="border-t border-slate-700 bg-slate-800/80 font-medium">
               <td className="px-4 py-3 text-slate-200" colSpan={4}>Total</td>
-              <td className="px-4 py-3 text-slate-100">${totalMarketValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+              <td className="px-4 py-3 text-slate-100">{formatCurrency(totalMarketValue, displayCurrency)}</td>
               <td className={`px-4 py-3 ${totalUnrealizedPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {totalUnrealizedPnl >= 0 ? '+' : ''}${totalUnrealizedPnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                {totalUnrealizedPnl >= 0 ? '+' : ''}{formatCurrency(totalUnrealizedPnl, displayCurrency)}
               </td>
               <td className="px-4 py-3 text-slate-500">—</td>
             </tr>

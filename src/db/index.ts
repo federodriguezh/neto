@@ -5,6 +5,8 @@ import type {
   HistoricalPrice,
   PortfolioHistory,
   PriceCacheEntry,
+  Preference,
+  ExchangeRate,
 } from './schema';
 
 const DB_NAME = 'neto-db';
@@ -15,6 +17,8 @@ interface NetoDatabase extends Dexie {
   historicalPrices: Table<HistoricalPrice, [string, string]>;
   portfolioHistory: Table<PortfolioHistory, string>;
   priceCache: Table<PriceCacheEntry, string>;
+  preferences: Table<Preference, string>;
+  exchangeRates: Table<ExchangeRate, [string, string]>;
 }
 
 const db = new Dexie(DB_NAME) as NetoDatabase;
@@ -38,6 +42,16 @@ db.version(2).stores({
     account.feeType = 'fixed';
     account.feeValue = 0;
   });
+});
+
+db.version(3).stores({
+  accounts: '++id, name, createdAt',
+  transactions: '++id, date, accountId, symbol, assetClass, type',
+  historicalPrices: '[symbol+date], symbol, date, close',
+  portfolioHistory: 'date, value',
+  priceCache: 'symbol, price, timestamp',
+  preferences: 'key',
+  exchangeRates: '[type+date], type, date',
 });
 
 export { db };
@@ -118,4 +132,40 @@ export async function getAllPriceCache(): Promise<PriceCacheEntry[]> {
 
 export async function clearPriceCache(): Promise<void> {
   await db.priceCache.clear();
+}
+
+export async function getPreference(key: string): Promise<Preference | undefined> {
+  return db.preferences.get(key);
+}
+
+export async function setPreference(key: string, value: unknown): Promise<void> {
+  await db.preferences.put({ key, value });
+}
+
+export async function getExchangeRate(type: 'mep' | 'ccl', date: string): Promise<ExchangeRate | undefined> {
+  return db.exchangeRates.get([type, date]);
+}
+
+export async function getExchangeRatesForType(
+  type: 'mep' | 'ccl',
+  startDate?: string,
+  endDate?: string
+): Promise<ExchangeRate[]> {
+  let collection = db.exchangeRates.where('type').equals(type);
+  if (startDate !== undefined && endDate !== undefined) {
+    collection = collection.and((er) => er.date >= startDate && er.date <= endDate);
+  } else if (startDate !== undefined) {
+    collection = collection.and((er) => er.date >= startDate);
+  } else if (endDate !== undefined) {
+    collection = collection.and((er) => er.date <= endDate);
+  }
+  return collection.sortBy('date');
+}
+
+export async function putExchangeRates(rates: ExchangeRate[]): Promise<void> {
+  await db.exchangeRates.bulkPut(rates);
+}
+
+export async function clearExchangeRates(): Promise<void> {
+  await db.exchangeRates.clear();
 }

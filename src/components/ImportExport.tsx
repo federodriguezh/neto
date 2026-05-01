@@ -9,8 +9,10 @@ export default function ImportExport() {
     const transactions = await db.transactions.toArray();
     const historicalPrices = await db.historicalPrices.toArray();
     const portfolioHistory = await db.portfolioHistory.toArray();
+    const preferences = await db.preferences.toArray();
+    const exchangeRates = await db.exchangeRates.toArray();
 
-    const data = { accounts, transactions, historicalPrices, portfolioHistory };
+    const data = { accounts, transactions, historicalPrices, portfolioHistory, preferences, exchangeRates };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -56,6 +58,8 @@ export default function ImportExport() {
       if (data.transactions) await db.transactions.bulkPut(data.transactions);
       if (data.historicalPrices) await db.historicalPrices.bulkPut(data.historicalPrices);
       if (data.portfolioHistory) await db.portfolioHistory.bulkPut(data.portfolioHistory);
+      if (data.preferences) await db.preferences.bulkPut(data.preferences);
+      if (data.exchangeRates) await db.exchangeRates.bulkPut(data.exchangeRates);
       window.location.reload();
     } catch {
       alert('Invalid import file');

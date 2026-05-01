@@ -4,26 +4,36 @@ import { usePortfolio } from '../hooks/usePortfolio';
 import { useLivePrices } from '../hooks/useLivePrices';
 import { usePortfolioValueHistory } from '../hooks/usePortfolioValueHistory';
 import { useYesterdayCloses } from '../hooks/useYesterdayCloses';
+import { useDisplayCurrency } from '../hooks/useDisplayCurrency';
+import { useLiveExchangeRate } from '../hooks/useLiveExchangeRate';
+import { useConvertedHistory } from '../hooks/useConvertedHistory';
+import { convertArsToUsd, formatCurrency } from '../utils/currency';
 import PortfolioChart from '../components/PortfolioChart';
 import HoldingsTable from '../components/HoldingsTable';
 
 export default function Dashboard() {
   const { holdings, totalRealizedPnl, loading: holdingsLoading } = usePortfolio();
   const { history } = usePortfolioValueHistory();
+  const { displayCurrency } = useDisplayCurrency();
+  const exchangeRateType = displayCurrency === 'MEP' || displayCurrency === 'CCL'
+    ? (displayCurrency === 'MEP' ? 'mep' : 'ccl')
+    : null;
+  const { rate: liveRate, error: rateError } = useLiveExchangeRate(exchangeRateType);
 
   const symbols = useMemo(() => holdings.map((h) => h.symbol), [holdings]);
   const assetClasses = useMemo(() => holdings.map((h) => h.assetClass), [holdings]);
   const { prices, pctChanges, loading: pricesLoading, error: pricesError } = useLivePrices(symbols, assetClasses);
   const { yesterdayPrices, loading: yesterdayPricesLoading } = useYesterdayCloses(symbols);
+  const { convertedHistory } = useConvertedHistory(history, displayCurrency);
 
-  const totalValue = useMemo(() => {
+  const totalValueArs = useMemo(() => {
     return holdings.reduce((sum, h) => {
       const price = prices[h.symbol] ?? 0;
       return sum + h.quantity * price;
     }, 0);
   }, [holdings, prices]);
 
-  const { dailyChange, dailyChangePercent } = useMemo(() => {
+  const { dailyChangeArs, dailyChangePercent } = useMemo(() => {
     let change = 0;
     let baseValue = 0;
     for (const h of holdings) {
@@ -34,7 +44,7 @@ export default function Dashboard() {
       baseValue += h.quantity * base;
     }
     const percent = baseValue > 0 ? (change / baseValue) * 100 : 0;
-    return { dailyChange: change, dailyChangePercent: percent };
+    return { dailyChangeArs: change, dailyChangePercent: percent };
   }, [holdings, prices, yesterdayPrices]);
 
   const hasValidBase = useMemo(() => {
@@ -42,6 +52,18 @@ export default function Dashboard() {
   }, [holdings, yesterdayPrices]);
 
   const isLoading = holdingsLoading || pricesLoading || yesterdayPricesLoading;
+
+  const totalValue = exchangeRateType && liveRate
+    ? convertArsToUsd(totalValueArs, liveRate)
+    : totalValueArs;
+
+  const dailyChange = exchangeRateType && liveRate
+    ? convertArsToUsd(dailyChangeArs, liveRate)
+    : dailyChangeArs;
+
+  const realizedPnlDisplay = exchangeRateType && liveRate
+    ? convertArsToUsd(totalRealizedPnl, liveRate)
+    : totalRealizedPnl;
 
   return (
     <div className="flex flex-col gap-6">
@@ -54,7 +76,7 @@ export default function Dashboard() {
             <span className="text-xs font-medium uppercase tracking-wider">Total Value</span>
           </div>
           <div className="text-2xl font-bold text-slate-100">
-            {isLoading ? '—' : `$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+            {isLoading ? '—' : formatCurrency(totalValue, displayCurrency)}
           </div>
         </div>
 
@@ -64,7 +86,7 @@ export default function Dashboard() {
             <span className="text-xs font-medium uppercase tracking-wider">Daily Change</span>
           </div>
           <div className={`text-2xl font-bold ${dailyChange >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isLoading || !hasValidBase ? '—' : `${dailyChange >= 0 ? '+' : ''}$${dailyChange.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+            {isLoading || !hasValidBase ? '—' : `${dailyChange >= 0 ? '+' : ''}${formatCurrency(dailyChange, displayCurrency)}`}
           </div>
         </div>
 
@@ -83,20 +105,26 @@ export default function Dashboard() {
             <Receipt size={16} />
             <span className="text-xs font-medium uppercase tracking-wider">Total Realized P&L</span>
           </div>
-          <div className={`text-2xl font-bold ${totalRealizedPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {holdingsLoading ? '—' : `${totalRealizedPnl >= 0 ? '+' : ''}$${totalRealizedPnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          <div className={`text-2xl font-bold ${realizedPnlDisplay >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {holdingsLoading ? '—' : `${realizedPnlDisplay >= 0 ? '+' : ''}${formatCurrency(realizedPnlDisplay, displayCurrency)}`}
           </div>
         </div>
       </div>
 
-      {pricesError && (
+      {(pricesError || rateError) && (
         <div className="rounded-xl bg-rose-900/30 border border-rose-800 p-4 text-sm text-rose-300">
-          <strong className="text-rose-200">Price data unavailable:</strong> {pricesError}
+          <strong className="text-rose-200">Data unavailable:</strong> {pricesError ?? rateError}
         </div>
       )}
 
-      <PortfolioChart history={history} />
-      <HoldingsTable holdings={holdings} prices={prices} pctChanges={pctChanges} />
+      <PortfolioChart history={convertedHistory} displayCurrency={displayCurrency} />
+      <HoldingsTable
+        holdings={holdings}
+        prices={prices}
+        pctChanges={pctChanges}
+        displayCurrency={displayCurrency}
+        liveRate={liveRate}
+      />
     </div>
   );
 }

@@ -4,6 +4,8 @@ import type {
   HistoricalPrice,
   PortfolioHistory,
   PriceCacheEntry,
+  Preference,
+  ExchangeRate,
 } from '../types';
 
 export type {
@@ -12,4 +14,6 @@ export type {
   HistoricalPrice,
   PortfolioHistory,
   PriceCacheEntry,
+  Preference,
+  ExchangeRate,
 };

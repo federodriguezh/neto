@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Plus, Pencil, Trash2, AlertTriangle, RotateCcw } from 'lucide-react';
 import { useAccounts } from '../hooks/useAccounts';
-import { db, clearPriceCache } from '../db';
+import { useDisplayCurrency } from '../hooks/useDisplayCurrency';
+import { db, clearPriceCache, clearExchangeRates } from '../db';
 import ImportExport from '../components/ImportExport';
 
 export default function SettingsPage() {
   const { accounts, create, update, remove } = useAccounts();
+  const { displayCurrency, setDisplayCurrency } = useDisplayCurrency();
   const [newAccountName, setNewAccountName] = useState('');
   const [newFeeType, setNewFeeType] = useState<'fixed' | 'percentage'>('fixed');
   const [newFeeValue, setNewFeeValue] = useState('0');
@@ -177,17 +179,55 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      <div className="rounded-xl bg-slate-800 p-4">
+        <h2 className="mb-3 text-sm font-medium text-slate-200">Display Currency</h2>
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-slate-400">
+            Choose how portfolio values are displayed. Historical conversions use Dólar {displayCurrency === 'MEP' ? 'MEP (Bolsa)' : displayCurrency === 'CCL' ? 'CCL (Contado con Liqui)' : 'ARS'} venta rate.
+          </p>
+          <div className="flex gap-2">
+            {(['ARS', 'MEP', 'CCL'] as const).map((c) => (
+              <button
+                key={c}
+                onClick={() => setDisplayCurrency(c)}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  displayCurrency === c
+                    ? 'bg-slate-700 text-slate-100'
+                    : 'bg-slate-900 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                }`}
+              >
+                {c === 'ARS' ? 'ARS ($)' : c === 'MEP' ? 'USD (MEP)' : 'USD (CCL)'}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <ImportExport />
 
       <div className="rounded-xl bg-slate-800 p-4">
         <h2 className="mb-3 text-sm font-medium text-slate-200">Data Maintenance</h2>
-        <button
-          onClick={handleClearPriceCache}
-          className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
-        >
-          <RotateCcw size={16} />
-          Clear Price Cache
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleClearPriceCache}
+            className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
+          >
+            <RotateCcw size={16} />
+            Clear Price Cache
+          </button>
+          <button
+            onClick={async () => {
+              if (confirm('This will clear cached exchange rate history. Rates will be re-fetched on next use. Continue?')) {
+                await clearExchangeRates();
+                alert('Exchange rate cache cleared.');
+              }
+            }}
+            className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
+          >
+            <RotateCcw size={16} />
+            Clear Exchange Rate Cache
+          </button>
+        </div>
       </div>
 
       <div className="rounded-xl bg-slate-800 p-4">
