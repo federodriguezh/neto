@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { AssetClass, TransactionType, Transaction, Account } from '../types';
+import { useTranslation } from '../i18n';
 import { calculateFees } from '../utils/fees';
 
 interface TransactionFormProps {
@@ -9,13 +10,8 @@ interface TransactionFormProps {
   onCancel?: () => void;
 }
 
-const ASSET_CLASSES: { value: AssetClass; label: string }[] = [
-  { value: 'arg_stocks', label: 'Argentine Stocks (BYMA)' },
-  { value: 'arg_cedears', label: 'Cedears' },
-  { value: 'arg_bonds', label: 'Argentine Bonds' },
-];
-
 export default function TransactionForm({ accounts, initial, onSubmit, onCancel }: TransactionFormProps) {
+  const { t } = useTranslation();
   const [accountId, setAccountId] = useState<string>(initial?.accountId ?? (accounts[0]?.id || ''));
   const [symbol, setSymbol] = useState(initial?.symbol ?? '');
   const [assetClass, setAssetClass] = useState<AssetClass>(initial?.assetClass ?? 'arg_stocks');
@@ -73,11 +69,17 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
     });
   };
 
+  const assetClasses: { value: AssetClass; label: string }[] = [
+    { value: 'arg_stocks', label: t('form.assetClass.arg_stocks') },
+    { value: 'arg_cedears', label: t('form.assetClass.arg_cedears') },
+    { value: 'arg_bonds', label: t('form.assetClass.arg_bonds') },
+  ];
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-xl bg-slate-800 p-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-400">Account</label>
+          <label className="text-xs font-medium text-slate-400">{t('form.account')}</label>
           <select
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
             value={accountId}
@@ -90,43 +92,43 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-400">Asset Class</label>
+          <label className="text-xs font-medium text-slate-400">{t('form.assetClass')}</label>
           <select
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
             value={assetClass}
             onChange={(e) => setAssetClass(e.target.value as AssetClass)}
           >
-            {ASSET_CLASSES.map((ac) => (
+            {assetClasses.map((ac) => (
               <option key={ac.value} value={ac.value}>{ac.label}</option>
             ))}
           </select>
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-400">Symbol</label>
+          <label className="text-xs font-medium text-slate-400">{t('form.symbol')}</label>
           <input
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700 uppercase"
             value={symbol}
             onChange={(e) => setSymbol(e.target.value)}
-            placeholder="e.g. GGAL"
+            placeholder={t('form.placeholder.symbol')}
             required
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-400">Type</label>
+          <label className="text-xs font-medium text-slate-400">{t('form.type')}</label>
           <select
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
             value={type}
             onChange={(e) => setType(e.target.value as TransactionType)}
           >
-            <option value="buy">Buy</option>
-            <option value="sell">Sell</option>
+            <option value="buy">{t('form.buy')}</option>
+            <option value="sell">{t('form.sell')}</option>
           </select>
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-400">Date</label>
+          <label className="text-xs font-medium text-slate-400">{t('form.date')}</label>
           <input
             type="date"
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
@@ -137,7 +139,7 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-400">Quantity</label>
+          <label className="text-xs font-medium text-slate-400">{t('form.quantity')}</label>
           <input
             type="number"
             min="0"
@@ -150,7 +152,7 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-400">Price (ARS)</label>
+          <label className="text-xs font-medium text-slate-400">{t('form.price')}</label>
           <input
             type="number"
             min="0"
@@ -163,7 +165,7 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-400">Fees (ARS)</label>
+          <label className="text-xs font-medium text-slate-400">{t('form.fees')}</label>
           <input
             type="number"
             min="0"
@@ -180,7 +182,7 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
           type="submit"
           className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
         >
-          {initial ? 'Update' : 'Add'} Transaction
+          {initial ? t('form.update') : t('form.add')} {t('transactions.title')}
         </button>
         {onCancel && (
           <button
@@ -188,7 +190,7 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
             onClick={onCancel}
             className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
           >
-            Cancel
+            {t('form.cancel')}
           </button>
         )}
       </div>

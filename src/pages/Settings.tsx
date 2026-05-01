@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, AlertTriangle, RotateCcw, Cloud, CloudOff, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { Plus, Pencil, Trash2, AlertTriangle, RotateCcw, Cloud, CloudOff, Eye, EyeOff, RefreshCw, BookOpen, Globe } from 'lucide-react';
 import { useAccounts } from '../hooks/useAccounts';
 import { useDisplayCurrency } from '../hooks/useDisplayCurrency';
 import { useSync } from '../hooks/useSync';
-import { db, clearPriceCache, clearExchangeRates } from '../db';
+import { useTranslation } from '../i18n';
+import { db, clearPriceCache, clearExchangeRates, setPreference } from '../db';
 import ImportExport from '../components/ImportExport';
 
 export default function SettingsPage() {
+  const { t, setLanguage } = useTranslation();
   const { accounts, create, update, remove } = useAccounts();
   const { displayCurrency, setDisplayCurrency } = useDisplayCurrency();
   const sync = useSync();
@@ -48,30 +50,36 @@ export default function SettingsPage() {
   };
 
   const handleClearAll = async () => {
-    if (confirm('WARNING: This will permanently delete ALL data. Are you sure?')) {
+    if (confirm(t('settings.clearAll') + ' — ' + t('misc.confirm'))) {
       await db.delete();
       window.location.reload();
     }
   };
 
   const handleClearPriceCache = async () => {
-    if (confirm('This will clear the cached live prices. Prices will be re-fetched on next refresh. Continue?')) {
+    if (confirm(t('settings.clearPriceCache') + '?')) {
       await clearPriceCache();
-      alert('Price cache cleared.');
+      alert(t('settings.clearPriceCache'));
     }
+  };
+
+  const handleShowOnboarding = async () => {
+    await setPreference('onboardingDismissed', false);
+    window.location.reload();
   };
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-slate-100">Settings</h1>
+      <h1 className="text-2xl font-bold text-slate-100">{t('settings.title')}</h1>
 
+      {/* Accounts */}
       <div className="rounded-xl bg-slate-800 p-4">
-        <h2 className="mb-3 text-sm font-medium text-slate-200">Accounts</h2>
+        <h2 className="mb-3 text-sm font-medium text-slate-200">{t('settings.accounts')}</h2>
         <div className="mb-4 flex flex-col gap-2">
           <div className="flex gap-2">
             <input
               className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
-              placeholder="New account name"
+              placeholder={t('settings.newAccount')}
               value={newAccountName}
               onChange={(e) => setNewAccountName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
@@ -81,7 +89,7 @@ export default function SettingsPage() {
               className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
             >
               <Plus size={16} />
-              Add
+              {t('settings.add')}
             </button>
           </div>
           <div className="flex gap-2">
@@ -90,15 +98,15 @@ export default function SettingsPage() {
               value={newFeeType}
               onChange={(e) => setNewFeeType(e.target.value as 'fixed' | 'percentage')}
             >
-              <option value="fixed">Fixed Fee (ARS)</option>
-              <option value="percentage">Percentage (%)</option>
+              <option value="fixed">{t('settings.fixedFee')}</option>
+              <option value="percentage">{t('settings.percentageFee')}</option>
             </select>
             <input
               type="number"
               min="0"
               step="any"
               className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
-              placeholder={newFeeType === 'fixed' ? 'Fixed amount in ARS' : 'Percentage (e.g. 0.5)'}
+              placeholder={newFeeType === 'fixed' ? t('settings.fixedPlaceholder') : t('settings.percentagePlaceholder')}
               value={newFeeValue}
               onChange={(e) => setNewFeeValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
@@ -126,13 +134,13 @@ export default function SettingsPage() {
                       onClick={() => account.id !== undefined && handleUpdate(account.id)}
                       className="text-xs font-medium text-emerald-400 hover:text-emerald-300"
                     >
-                      Save
+                      {t('settings.save')}
                     </button>
                     <button
                       onClick={() => { setEditingId(null); setEditingName(''); setEditingFeeType('fixed'); setEditingFeeValue('0'); }}
                       className="text-xs font-medium text-slate-400 hover:text-slate-300"
                     >
-                      Cancel
+                      {t('settings.cancel')}
                     </button>
                   </div>
                   <div className="flex gap-2">
@@ -141,15 +149,15 @@ export default function SettingsPage() {
                       value={editingFeeType}
                       onChange={(e) => setEditingFeeType(e.target.value as 'fixed' | 'percentage')}
                     >
-                      <option value="fixed">Fixed Fee (ARS)</option>
-                      <option value="percentage">Percentage (%)</option>
+                      <option value="fixed">{t('settings.fixedFee')}</option>
+                      <option value="percentage">{t('settings.percentageFee')}</option>
                     </select>
                     <input
                       type="number"
                       min="0"
                       step="any"
                       className="flex-1 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 border border-slate-700"
-                      placeholder={editingFeeType === 'fixed' ? 'Fixed amount in ARS' : 'Percentage (e.g. 0.5)'}
+                      placeholder={editingFeeType === 'fixed' ? t('settings.fixedPlaceholder') : t('settings.percentagePlaceholder')}
                       value={editingFeeValue}
                       onChange={(e) => setEditingFeeValue(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && account.id !== undefined && handleUpdate(account.id)}
@@ -188,16 +196,17 @@ export default function SettingsPage() {
             </div>
           ))}
           {accounts.length === 0 && (
-            <div className="text-sm text-slate-500">No accounts yet.</div>
+            <div className="text-sm text-slate-500">{t('settings.noAccounts')}</div>
           )}
         </div>
       </div>
 
+      {/* Display Currency */}
       <div className="rounded-xl bg-slate-800 p-4">
-        <h2 className="mb-3 text-sm font-medium text-slate-200">Display Currency</h2>
+        <h2 className="mb-3 text-sm font-medium text-slate-200">{t('settings.displayCurrency')}</h2>
         <div className="flex flex-col gap-2">
           <p className="text-xs text-slate-400">
-            Choose how portfolio values are displayed. Historical conversions use Dólar {displayCurrency === 'MEP' ? 'MEP (Bolsa)' : displayCurrency === 'CCL' ? 'CCL (Contado con Liqui)' : 'ARS'} venta rate.
+            {t('settings.currencyDescription', { currency: displayCurrency === 'MEP' ? 'MEP (Bolsa)' : displayCurrency === 'CCL' ? 'CCL (Contado con Liqui)' : 'ARS' })}
           </p>
           <div className="flex gap-2">
             {(['ARS', 'MEP', 'CCL'] as const).map((c) => (
@@ -210,20 +219,41 @@ export default function SettingsPage() {
                     : 'bg-slate-900 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
                 }`}
               >
-                {c === 'ARS' ? 'ARS ($)' : c === 'MEP' ? 'USD (MEP)' : 'USD (CCL)'}
+                {c === 'ARS' ? t('settings.ars') : c === 'MEP' ? t('settings.mep') : t('settings.ccl')}
               </button>
             ))}
           </div>
         </div>
       </div>
 
+      {/* Language */}
       <div className="rounded-xl bg-slate-800 p-4">
-        <h2 className="mb-3 text-sm font-medium text-slate-200">Encrypted Cloud Sync</h2>
+        <div className="flex items-center gap-2 mb-3">
+          <Globe size={16} className="text-slate-400" />
+          <h2 className="text-sm font-medium text-slate-200">{t('settings.language')}</h2>
+        </div>
+        <p className="text-xs text-slate-400 mb-2">{t('settings.languageDescription')}</p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setLanguage('en')}
+            className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
+          >
+            {t('settings.english')}
+          </button>
+          <button
+            onClick={() => setLanguage('es')}
+            className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
+          >
+            {t('settings.spanish')}
+          </button>
+        </div>
+      </div>
+
+      {/* Sync */}
+      <div className="rounded-xl bg-slate-800 p-4">
+        <h2 className="mb-3 text-sm font-medium text-slate-200">{t('sync.title')}</h2>
         <div className="flex flex-col gap-3">
-          <p className="text-xs text-slate-400">
-            Sync your portfolio across devices using a private GitHub Gist.
-            Your data is encrypted with a passphrase before leaving this device.
-          </p>
+          <p className="text-xs text-slate-400">{t('sync.description')}</p>
 
           <div className="flex items-center gap-3">
             <button
@@ -241,11 +271,11 @@ export default function SettingsPage() {
               }`}
             >
               {sync.enabled ? <Cloud size={16} /> : <CloudOff size={16} />}
-              {sync.enabled ? 'Sync Enabled' : 'Sync Disabled'}
+              {sync.enabled ? t('sync.enabled') : t('sync.disabled')}
             </button>
             {sync.lastSyncAt && (
               <span className="text-xs text-slate-500">
-                Last synced: {new Date(sync.lastSyncAt).toLocaleString()}
+                {t('sync.lastSynced', { time: new Date(sync.lastSyncAt).toLocaleString() })}
               </span>
             )}
           </div>
@@ -259,21 +289,21 @@ export default function SettingsPage() {
           {sync.status === 'syncing' && (
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <RefreshCw size={14} className="animate-spin" />
-              Syncing...
+              {t('sync.syncing')}
             </div>
           )}
 
           {sync.status === 'success' && (
-            <div className="text-xs text-emerald-400">Sync successful</div>
+            <div className="text-xs text-emerald-400">{t('sync.success')}</div>
           )}
 
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-slate-400">GitHub Personal Access Token</label>
+            <label className="text-xs font-medium text-slate-400">{t('sync.pat')}</label>
             <div className="flex gap-2">
               <input
                 type={showPat ? 'text' : 'password'}
                 className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
-                placeholder="ghp_..."
+                placeholder={t('sync.patPlaceholder')}
                 value={patInput}
                 onChange={(e) => setPatInput(e.target.value)}
               />
@@ -284,16 +314,16 @@ export default function SettingsPage() {
                 {showPat ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            <p className="text-xs text-slate-500">Requires the <code className="text-slate-400">gist</code> scope.</p>
+            <p className="text-xs text-slate-500">{t('sync.patScope', { scope: 'gist' })}</p>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-slate-400">Sync Passphrase</label>
+            <label className="text-xs font-medium text-slate-400">{t('sync.passphrase')}</label>
             <div className="flex gap-2">
               <input
                 type={showPassphrase ? 'text' : 'password'}
                 className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
-                placeholder="Min 8 characters"
+                placeholder={t('sync.passphrasePlaceholder')}
                 value={passphraseInput}
                 onChange={(e) => setPassphraseInput(e.target.value)}
               />
@@ -308,11 +338,11 @@ export default function SettingsPage() {
 
           {!sync.passphrase && (
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-medium text-slate-400">Confirm Passphrase</label>
+              <label className="text-xs font-medium text-slate-400">{t('sync.confirmPassphrase')}</label>
               <input
                 type={showPassphrase ? 'text' : 'password'}
                 className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
-                placeholder="Repeat passphrase"
+                placeholder={t('sync.confirmPlaceholder')}
                 value={confirmPassphraseInput}
                 onChange={(e) => setConfirmPassphraseInput(e.target.value)}
               />
@@ -324,15 +354,15 @@ export default function SettingsPage() {
               <button
                 onClick={async () => {
                   if (!patInput.trim()) {
-                    alert('Please enter a GitHub Personal Access Token.');
+                    alert(t('sync.error.patRequired'));
                     return;
                   }
                   if (passphraseInput.length < 8) {
-                    alert('Passphrase must be at least 8 characters.');
+                    alert(t('sync.error.passphraseLength'));
                     return;
                   }
                   if (!sync.passphrase && passphraseInput !== confirmPassphraseInput) {
-                    alert('Passphrases do not match.');
+                    alert(t('sync.error.passphraseMatch'));
                     return;
                   }
                   await sync.setPat(patInput.trim());
@@ -343,7 +373,7 @@ export default function SettingsPage() {
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
               >
                 <Cloud size={16} />
-                Enable Sync
+                {t('sync.enable')}
               </button>
             ) : (
               <>
@@ -357,11 +387,11 @@ export default function SettingsPage() {
                   className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors disabled:opacity-50"
                 >
                   <RefreshCw size={16} />
-                  Sync Now
+                  {t('sync.syncNow')}
                 </button>
                 <button
                   onClick={async () => {
-                    if (confirm('This will disable sync and remove your saved passphrase from this device. The encrypted Gist will remain on GitHub. Continue?')) {
+                    if (confirm(t('sync.unlinkConfirm'))) {
                       await sync.unlink();
                       setPatInput('');
                       setPassphraseInput('');
@@ -371,7 +401,7 @@ export default function SettingsPage() {
                   className="inline-flex items-center gap-2 rounded-lg bg-rose-900/30 px-3 py-2 text-sm font-medium text-rose-400 hover:bg-rose-900/50 transition-colors"
                 >
                   <CloudOff size={16} />
-                  Unlink
+                  {t('sync.unlink')}
                 </button>
               </>
             )}
@@ -381,45 +411,54 @@ export default function SettingsPage() {
 
       <ImportExport />
 
+      {/* Data Maintenance */}
       <div className="rounded-xl bg-slate-800 p-4">
-        <h2 className="mb-3 text-sm font-medium text-slate-200">Data Maintenance</h2>
+        <h2 className="mb-3 text-sm font-medium text-slate-200">{t('settings.dataMaintenance')}</h2>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={handleClearPriceCache}
             className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
           >
             <RotateCcw size={16} />
-            Clear Price Cache
+            {t('settings.clearPriceCache')}
           </button>
           <button
             onClick={async () => {
-              if (confirm('This will clear cached exchange rate history. Rates will be re-fetched on next use. Continue?')) {
+              if (confirm(t('settings.clearExchangeRates') + '?')) {
                 await clearExchangeRates();
-                alert('Exchange rate cache cleared.');
+                alert(t('settings.clearExchangeRates'));
               }
             }}
             className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
           >
             <RotateCcw size={16} />
-            Clear Exchange Rate Cache
+            {t('settings.clearExchangeRates')}
+          </button>
+          <button
+            onClick={handleShowOnboarding}
+            className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
+          >
+            <BookOpen size={16} />
+            {t('settings.showOnboarding')}
           </button>
         </div>
       </div>
 
+      {/* Danger Zone */}
       <div className="rounded-xl bg-slate-800 p-4">
-        <h2 className="mb-3 text-sm font-medium text-slate-200">Danger Zone</h2>
+        <h2 className="mb-3 text-sm font-medium text-slate-200">{t('settings.dangerZone')}</h2>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={handleClearAll}
             className="inline-flex items-center gap-2 rounded-lg bg-rose-900/30 px-3 py-2 text-sm font-medium text-rose-400 hover:bg-rose-900/50 transition-colors"
           >
             <AlertTriangle size={16} />
-            Clear All Data
+            {t('settings.clearAll')}
           </button>
           {localStorage.getItem('neto-pre-v4-backup') && (
             <button
               onClick={() => {
-                if (confirm('Delete the pre-v4 database backup from localStorage? This cannot be undone.')) {
+                if (confirm(t('settings.deleteV3Backup') + ' — ' + t('misc.confirm'))) {
                   localStorage.removeItem('neto-pre-v4-backup');
                   window.location.reload();
                 }
@@ -427,7 +466,7 @@ export default function SettingsPage() {
               className="inline-flex items-center gap-2 rounded-lg bg-rose-900/30 px-3 py-2 text-sm font-medium text-rose-400 hover:bg-rose-900/50 transition-colors"
             >
               <Trash2 size={16} />
-              Delete v3 Backup
+              {t('settings.deleteV3Backup')}
             </button>
           )}
         </div>

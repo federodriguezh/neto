@@ -1,9 +1,17 @@
 import { useCallback } from 'react';
-import { Download, Upload } from 'lucide-react';
-import { db } from '../db';
+import { Download, Upload, FileSpreadsheet } from 'lucide-react';
+import { db, addTransaction } from '../db';
 import type { Account } from '../types';
+import { useTranslation } from '../i18n';
+import { importCsv } from '../utils/csvImport';
+
+const CSV_TEMPLATE = `date,account,symbol,assetClass,type,quantity,price,fees,currency
+2024-01-15,MyBroker,GGAL,arg_stocks,buy,100,2500.50,12.63,ARS
+2024-02-20,MyBroker,GGAL,arg_stocks,sell,50,2800.00,7.42,ARS`;
 
 export default function ImportExport() {
+  const { t } = useTranslation();
+
   const handleExport = useCallback(async () => {
     const accounts = await db.accounts.toArray();
     const transactions = await db.transactions.toArray();
@@ -40,6 +48,16 @@ export default function ImportExport() {
     URL.revokeObjectURL(url);
   }, []);
 
+  const handleDownloadTemplate = useCallback(() => {
+    const blob = new Blob([CSV_TEMPLATE], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'neto-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -48,7 +66,6 @@ export default function ImportExport() {
     try {
       const data = JSON.parse(text);
 
-      // Detect and convert pre-v4 exports (numeric ids) to v4 (UUID strings)
       const isOldFormat = data.accounts?.length > 0 && typeof data.accounts[0].id === 'number';
 
       let accounts = data.accounts ?? [];
@@ -94,33 +111,71 @@ export default function ImportExport() {
       if (data.exchangeRates) await db.exchangeRates.bulkPut(data.exchangeRates);
       window.location.reload();
     } catch {
-      alert('Invalid import file');
+      alert(t('import.invalidFile'));
     }
-  }, []);
+  }, [t]);
+
+  const handleImportCsv = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const text = await file.text();
+    try {
+      const result = await importCsv(text);
+      if (result.transactions.length > 0) {
+        for (const tx of result.transactions) {
+          await addTransaction(tx);
+        }
+      }
+      const msg = t('import.csv.success', { count: String(result.count), errors: String(result.errors.length) });
+      if (result.errors.length > 0) {
+        alert(`${msg}\n\n${t('import.csv.errors')}\n${result.errors.join('\n')}`);
+      } else {
+        alert(msg);
+      }
+      if (result.count > 0) {
+        window.location.reload();
+      }
+    } catch {
+      alert(t('import.invalidFile'));
+    }
+  }, [t]);
 
   return (
     <div className="flex flex-col gap-3 rounded-xl bg-slate-800 p-4">
-      <h3 className="text-sm font-medium text-slate-200">Export & Import</h3>
+      <h3 className="text-sm font-medium text-slate-200">{t('settings.exportImport')}</h3>
       <div className="flex flex-wrap gap-2">
         <button
           onClick={handleExport}
           className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
         >
           <Download size={16} />
-          Export JSON
+          {t('settings.exportJson')}
         </button>
         <button
           onClick={handleExportCsv}
           className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
         >
           <Download size={16} />
-          Export CSV
+          {t('settings.exportCsv')}
         </button>
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors">
           <Upload size={16} />
-          Import JSON
+          {t('settings.importJson')}
           <input type="file" accept="application/json" className="hidden" onChange={handleImport} />
         </label>
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors">
+          <Upload size={16} />
+          {t('settings.importCsv')}
+          <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportCsv} />
+        </label>
+        <button
+          onClick={handleDownloadTemplate}
+          className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
+        >
+          <FileSpreadsheet size={16} />
+          {t('settings.csvTemplate')}
+        </button>
       </div>
     </div>
   );

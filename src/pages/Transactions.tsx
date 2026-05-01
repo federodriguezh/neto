@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { useAccounts } from '../hooks/useAccounts';
 import { useDisplayCurrency } from '../hooks/useDisplayCurrency';
+import { useTranslation } from '../i18n';
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction, getExchangeRatesForType } from '../db';
 import type { Transaction, ExchangeRate } from '../types';
 import TransactionForm from '../components/TransactionForm';
@@ -30,6 +31,7 @@ function getRateWithFallback(map: Map<string, number>, targetDate: string, sorte
 }
 
 export default function TransactionsPage() {
+  const { t } = useTranslation();
   const { accounts } = useAccounts();
   const { displayCurrency } = useDisplayCurrency();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -98,7 +100,7 @@ export default function TransactionsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Delete this transaction?')) {
+    if (confirm(t('transactions.deleteConfirm'))) {
       await deleteTransaction(id);
       await refresh();
     }
@@ -109,14 +111,14 @@ export default function TransactionsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-100">Transactions</h1>
+        <h1 className="text-2xl font-bold text-slate-100">{t('transactions.title')}</h1>
         {!showForm && !editing && (
           <button
             onClick={() => setShowForm(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
           >
             <Plus size={16} />
-            Add Transaction
+            {t('transactions.add')}
           </button>
         )}
       </div>
@@ -137,14 +139,14 @@ export default function TransactionsPage() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-700 text-slate-400">
-              <th className="px-4 py-3 font-medium">Date</th>
-              <th className="px-4 py-3 font-medium">Account</th>
-              <th className="px-4 py-3 font-medium">Symbol</th>
-              <th className="px-4 py-3 font-medium">Type</th>
-              <th className="px-4 py-3 font-medium">Qty</th>
-              <th className="px-4 py-3 font-medium">Price</th>
-              <th className="px-4 py-3 font-medium">Fees</th>
-              <th className="px-4 py-3 font-medium">Realized P&L</th>
+              <th className="px-4 py-3 font-medium">{t('transactions.date')}</th>
+              <th className="px-4 py-3 font-medium">{t('transactions.account')}</th>
+              <th className="px-4 py-3 font-medium">{t('transactions.symbol')}</th>
+              <th className="px-4 py-3 font-medium">{t('transactions.type')}</th>
+              <th className="px-4 py-3 font-medium">{t('transactions.quantity')}</th>
+              <th className="px-4 py-3 font-medium">{t('transactions.price')}</th>
+              <th className="px-4 py-3 font-medium">{t('transactions.fees')}</th>
+              <th className="px-4 py-3 font-medium">{t('transactions.realizedPnl')}</th>
               <th className="px-4 py-3 font-medium"></th>
             </tr>
           </thead>
@@ -160,13 +162,13 @@ export default function TransactionsPage() {
               return (
                 <tr key={tx.id} className="border-b border-slate-700/50 last:border-0">
                   <td className="px-4 py-3 text-slate-300">{tx.date}</td>
-                  <td className="px-4 py-3 text-slate-300">{accountMap.get(tx.accountId) ?? 'Unknown'}</td>
+                  <td className="px-4 py-3 text-slate-300">{accountMap.get(tx.accountId) ?? '—'}</td>
                   <td className="px-4 py-3 font-medium text-slate-100">{tx.symbol}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                       tx.type === 'buy' ? 'bg-emerald-900/50 text-emerald-400' : 'bg-rose-900/50 text-rose-400'
                     }`}>
-                      {tx.type.toUpperCase()}
+                      {tx.type === 'buy' ? t('form.buy') : t('form.sell')}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-300">{tx.quantity.toLocaleString()}</td>
@@ -202,7 +204,7 @@ export default function TransactionsPage() {
             })}
             {transactions.length === 0 && !loading && (
               <tr>
-                <td colSpan={9} className="px-4 py-6 text-center text-slate-500">No transactions yet.</td>
+                <td colSpan={9} className="px-4 py-6 text-center text-slate-500">{t('transactions.none')}</td>
               </tr>
             )}
           </tbody>

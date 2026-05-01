@@ -8,6 +8,7 @@ import { useDisplayCurrency } from '../hooks/useDisplayCurrency';
 import { useLiveExchangeRate } from '../hooks/useLiveExchangeRate';
 import { useConvertedHistory } from '../hooks/useConvertedHistory';
 import { useSpyComparison } from '../hooks/useSpyComparison';
+import { useTranslation } from '../i18n';
 import { convertArsToUsd, formatCurrency } from '../utils/currency';
 import PortfolioChart from '../components/PortfolioChart';
 import ComparisonChart from '../components/ComparisonChart';
@@ -17,6 +18,7 @@ import RangeSelector from '../components/RangeSelector';
 import type { Range } from '../components/RangeSelector';
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const { holdings, totalRealizedPnl, loading: holdingsLoading } = usePortfolio();
   const { history } = usePortfolioValueHistory();
   const { displayCurrency } = useDisplayCurrency();
@@ -92,53 +94,53 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-slate-100">Dashboard</h1>
+      <h1 className="text-2xl font-bold text-slate-100">{t('dashboard.title')}</h1>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl bg-slate-800 p-4">
           <div className="mb-2 flex items-center gap-2 text-slate-400">
             <Wallet size={16} />
-            <span className="text-xs font-medium uppercase tracking-wider">Total Value</span>
+            <span className="text-xs font-medium uppercase tracking-wider">{t('dashboard.totalValue')}</span>
           </div>
           <div className="text-2xl font-bold text-slate-100">
-            {isLoading ? '—' : formatCurrency(totalValue, displayCurrency)}
+            {isLoading ? t('dashboard.loading') : formatCurrency(totalValue, displayCurrency)}
           </div>
         </div>
 
         <div className="rounded-xl bg-slate-800 p-4">
           <div className="mb-2 flex items-center gap-2 text-slate-400">
             {dailyChange >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-            <span className="text-xs font-medium uppercase tracking-wider">Daily Change</span>
+            <span className="text-xs font-medium uppercase tracking-wider">{t('dashboard.dailyChange')}</span>
           </div>
           <div className={`text-2xl font-bold ${dailyChange >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isLoading || !hasValidBase ? '—' : `${dailyChange >= 0 ? '+' : ''}${formatCurrency(dailyChange, displayCurrency)}`}
+            {isLoading || !hasValidBase ? t('dashboard.loading') : `${dailyChange >= 0 ? '+' : ''}${formatCurrency(dailyChange, displayCurrency)}`}
           </div>
         </div>
 
         <div className="rounded-xl bg-slate-800 p-4">
           <div className="mb-2 flex items-center gap-2 text-slate-400">
             <TrendingUp size={16} />
-            <span className="text-xs font-medium uppercase tracking-wider">Daily Change %</span>
+            <span className="text-xs font-medium uppercase tracking-wider">{t('dashboard.dailyChangePercent')}</span>
           </div>
           <div className={`text-2xl font-bold ${dailyChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isLoading || !hasValidBase ? '—' : `${dailyChangePercent >= 0 ? '+' : ''}${dailyChangePercent.toFixed(2)}%`}
+            {isLoading || !hasValidBase ? t('dashboard.loading') : `${dailyChangePercent >= 0 ? '+' : ''}${dailyChangePercent.toFixed(2)}%`}
           </div>
         </div>
 
         <div className="rounded-xl bg-slate-800 p-4">
           <div className="mb-2 flex items-center gap-2 text-slate-400">
             <Receipt size={16} />
-            <span className="text-xs font-medium uppercase tracking-wider">Total Realized P&L</span>
+            <span className="text-xs font-medium uppercase tracking-wider">{t('dashboard.realizedPnl')}</span>
           </div>
           <div className={`text-2xl font-bold ${realizedPnlDisplay >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {holdingsLoading ? '—' : `${realizedPnlDisplay >= 0 ? '+' : ''}${formatCurrency(realizedPnlDisplay, displayCurrency)}`}
+            {holdingsLoading ? t('dashboard.loading') : `${realizedPnlDisplay >= 0 ? '+' : ''}${formatCurrency(realizedPnlDisplay, displayCurrency)}`}
           </div>
         </div>
       </div>
 
       {(pricesError || rateError) && (
         <div className="rounded-xl bg-rose-900/30 border border-rose-800 p-4 text-sm text-rose-300">
-          <strong className="text-rose-200">Data unavailable:</strong> {pricesError ?? rateError}
+          <strong className="text-rose-200">{t('dashboard.dataUnavailable')}</strong> {pricesError ?? rateError}
         </div>
       )}
 
@@ -157,7 +159,7 @@ export default function Dashboard() {
                       : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
                   }`}
                 >
-                  Value
+                  {t('dashboard.value')}
                 </button>
                 <button
                   onClick={() => setComparisonMode(true)}
@@ -167,7 +169,7 @@ export default function Dashboard() {
                       : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
                   }`}
                 >
-                  Compare to SPY
+                  {t('dashboard.compareSpy')}
                 </button>
               </div>
             )}

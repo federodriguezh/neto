@@ -1,27 +1,35 @@
 import type { ReactNode } from 'react';
-import { LayoutDashboard, List, Settings } from 'lucide-react';
+import { LayoutDashboard, List, Settings, BookOpen } from 'lucide-react';
+import { useTranslation } from '../i18n';
 
-type Route = 'dashboard' | 'transactions' | 'settings';
+type Route = 'dashboard' | 'transactions' | 'settings' | 'onboarding';
 
 interface LayoutProps {
   children: ReactNode;
   current: Route;
   onNavigate: (route: Route) => void;
+  showOnboarding: boolean;
 }
 
-const NAV_ITEMS: { route: Route; label: string; icon: typeof LayoutDashboard }[] = [
-  { route: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { route: 'transactions', label: 'Transactions', icon: List },
-  { route: 'settings', label: 'Settings', icon: Settings },
-];
+export default function Layout({ children, current, onNavigate, showOnboarding }: LayoutProps) {
+  const { t } = useTranslation();
 
-export default function Layout({ children, current, onNavigate }: LayoutProps) {
+  const navItems: { route: Route; label: string; icon: typeof LayoutDashboard }[] = [
+    { route: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
+    { route: 'transactions', label: t('nav.transactions'), icon: List },
+    { route: 'settings', label: t('nav.settings'), icon: Settings },
+  ];
+
+  if (showOnboarding) {
+    navItems.push({ route: 'onboarding', label: t('nav.onboarding'), icon: BookOpen });
+  }
+
   return (
     <div className="flex h-full flex-col md:flex-row">
       {/* Desktop sidebar */}
       <nav className="hidden md:flex w-64 flex-col gap-1 bg-slate-900 p-4 border-r border-slate-800">
         <div className="mb-6 text-xl font-bold text-slate-100">neto</div>
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const Icon = item.icon;
           const active = current === item.route;
           return (
@@ -43,7 +51,7 @@ export default function Layout({ children, current, onNavigate }: LayoutProps) {
 
       {/* Mobile bottom nav */}
       <nav className="flex md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900 border-t border-slate-800">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const Icon = item.icon;
           const active = current === item.route;
           return (
