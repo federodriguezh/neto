@@ -20,12 +20,12 @@ def main():
 
     data = []
     for date, row in hist.iterrows():
-        adj_close = row.get("Adj Close")
-        if adj_close is not None and not (adj_close != adj_close):  # NaN check
+        close = row.get("Close")
+        if close is not None and not (close != close):  # NaN check
             data.append(
                 {
                     "date": date.strftime("%Y-%m-%d"),
-                    "adjClose": round(float(adj_close), 4),
+                    "adjClose": round(float(close), 4),
                 }
             )
 

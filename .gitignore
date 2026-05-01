@@ -9,6 +9,7 @@ dev-dist/
 
 # Generated data files
 public/data/cedears/
+public/data/spy.json
 
 # OpenCode / local tooling
 AGENTS.md
