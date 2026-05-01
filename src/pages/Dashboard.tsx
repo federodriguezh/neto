@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { TrendingUp, TrendingDown, Wallet, Receipt } from 'lucide-react';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { useLivePrices } from '../hooks/useLivePrices';
@@ -7,14 +7,23 @@ import { useYesterdayCloses } from '../hooks/useYesterdayCloses';
 import { useDisplayCurrency } from '../hooks/useDisplayCurrency';
 import { useLiveExchangeRate } from '../hooks/useLiveExchangeRate';
 import { useConvertedHistory } from '../hooks/useConvertedHistory';
+import { useSpyComparison } from '../hooks/useSpyComparison';
 import { convertArsToUsd, formatCurrency } from '../utils/currency';
 import PortfolioChart from '../components/PortfolioChart';
+import ComparisonChart from '../components/ComparisonChart';
 import HoldingsTable from '../components/HoldingsTable';
+import LiveMepRateCard from '../components/LiveMepRateCard';
+import RangeSelector from '../components/RangeSelector';
+import type { Range } from '../components/RangeSelector';
 
 export default function Dashboard() {
   const { holdings, totalRealizedPnl, loading: holdingsLoading } = usePortfolio();
   const { history } = usePortfolioValueHistory();
   const { displayCurrency } = useDisplayCurrency();
+
+  const [range, setRange] = useState<Range>('30');
+  const [comparisonMode, setComparisonMode] = useState(false);
+
   const exchangeRateType = displayCurrency === 'MEP' || displayCurrency === 'CCL'
     ? (displayCurrency === 'MEP' ? 'mep' : 'ccl')
     : null;
@@ -25,6 +34,22 @@ export default function Dashboard() {
   const { prices, pctChanges, loading: pricesLoading, error: pricesError } = useLivePrices(symbols, assetClasses);
   const { yesterdayPrices, loading: yesterdayPricesLoading } = useYesterdayCloses(symbols);
   const { convertedHistory } = useConvertedHistory(history, displayCurrency);
+
+  // Filter history by selected range
+  const filteredHistory = useMemo(() => {
+    if (range === 'max') return convertedHistory;
+    const days = parseInt(range, 10);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
+    return convertedHistory.filter((h) => h.date >= cutoffStr);
+  }, [convertedHistory, range]);
+
+  // SPY comparison (only in USD modes)
+  const { data: comparisonData } = useSpyComparison(
+    filteredHistory,
+    comparisonMode && displayCurrency !== 'ARS'
+  );
 
   const totalValueArs = useMemo(() => {
     return holdings.reduce((sum, h) => {
@@ -117,7 +142,46 @@ export default function Dashboard() {
         </div>
       )}
 
-      <PortfolioChart history={convertedHistory} displayCurrency={displayCurrency} />
+      <div className="rounded-xl bg-slate-800 p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            {displayCurrency === 'ARS' ? (
+              <LiveMepRateCard />
+            ) : (
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setComparisonMode(false)}
+                  className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                    !comparisonMode
+                      ? 'bg-slate-700 text-slate-100'
+                      : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                  }`}
+                >
+                  Value
+                </button>
+                <button
+                  onClick={() => setComparisonMode(true)}
+                  className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                    comparisonMode
+                      ? 'bg-slate-700 text-slate-100'
+                      : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                  }`}
+                >
+                  Compare to SPY
+                </button>
+              </div>
+            )}
+          </div>
+          <RangeSelector range={range} onChange={setRange} />
+        </div>
+
+        {comparisonMode && displayCurrency !== 'ARS' ? (
+          <ComparisonChart data={comparisonData} />
+        ) : (
+          <PortfolioChart history={filteredHistory} displayCurrency={displayCurrency} />
+        )}
+      </div>
+
       <HoldingsTable
         holdings={holdings}
         prices={prices}
