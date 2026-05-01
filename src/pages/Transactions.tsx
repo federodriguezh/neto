@@ -69,8 +69,8 @@ export default function TransactionsPage() {
 
   const rateMap = useMemo(() => buildRateMap(exchangeRates), [exchangeRates]);
 
-  const handleAdd = async (tx: Omit<Transaction, 'id'>) => {
-    let txToSave: Omit<Transaction, 'id'> = tx;
+  const handleAdd = async (tx: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'>) => {
+    let txToSave: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'> = tx;
     if (tx.type === 'sell') {
       const allTxs = await getTransactions();
       const pnl = calculateRealizedPnl(tx as Transaction, allTxs);
@@ -81,7 +81,7 @@ export default function TransactionsPage() {
     setShowForm(false);
   };
 
-  const handleUpdate = async (tx: Omit<Transaction, 'id'>) => {
+  const handleUpdate = async (tx: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'>) => {
     if (editing?.id !== undefined) {
       let changes: Partial<Transaction> = tx;
       if (tx.type === 'sell') {
@@ -97,7 +97,7 @@ export default function TransactionsPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Delete this transaction?')) {
       await deleteTransaction(id);
       await refresh();

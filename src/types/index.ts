@@ -3,17 +3,18 @@ export type TransactionType = 'buy' | 'sell';
 export type DisplayCurrency = 'ARS' | 'MEP' | 'CCL';
 
 export interface Account {
-  id?: number;
+  id: string;
   name: string;
   createdAt: string;
+  updatedAt: string;
   feeType: 'fixed' | 'percentage';
   feeValue: number;
 }
 
 export interface Transaction {
-  id?: number;
+  id: string;
   date: string;
-  accountId: number;
+  accountId: string;
   symbol: string;
   assetClass: AssetClass;
   type: TransactionType;
@@ -22,6 +23,8 @@ export interface Transaction {
   fees: number;
   currency: string;
   realizedPnl?: number;
+  updatedAt: string;
+  createdAt: string;
 }
 
 export interface HistoricalPrice {

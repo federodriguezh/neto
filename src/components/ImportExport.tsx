@@ -47,15 +47,47 @@ export default function ImportExport() {
     const text = await file.text();
     try {
       const data = JSON.parse(text);
-      if (data.accounts) {
-        const accounts = data.accounts.map((a: Account) => ({
+
+      // Detect and convert pre-v4 exports (numeric ids) to v4 (UUID strings)
+      const isOldFormat = data.accounts?.length > 0 && typeof data.accounts[0].id === 'number';
+
+      let accounts = data.accounts ?? [];
+      let transactions = data.transactions ?? [];
+
+      if (isOldFormat) {
+        const idMap = new Map<unknown, string>();
+        accounts = accounts.map((a: Record<string, unknown>) => {
+          const newId = crypto.randomUUID();
+          idMap.set(a.id, newId);
+          return {
+            ...a,
+            id: newId,
+            updatedAt: (a.createdAt as string) ?? new Date().toISOString().split('T')[0],
+          };
+        });
+        transactions = transactions.map((t: Record<string, unknown>) => {
+          const newId = crypto.randomUUID();
+          const newAccountId = idMap.get(t.accountId);
+          if (!newAccountId) throw new Error(`Missing account mapping for transaction ${String(t.id)}`);
+          return {
+            ...t,
+            id: newId,
+            accountId: newAccountId,
+            updatedAt: (t.date as string) ?? new Date().toISOString().split('T')[0],
+            createdAt: (t.date as string) ?? new Date().toISOString().split('T')[0],
+          };
+        });
+      }
+
+      if (accounts.length > 0) {
+        accounts = accounts.map((a: Account) => ({
           ...a,
           feeType: a.feeType ?? 'fixed',
           feeValue: a.feeValue ?? 0,
         }));
         await db.accounts.bulkPut(accounts);
       }
-      if (data.transactions) await db.transactions.bulkPut(data.transactions);
+      if (transactions.length > 0) await db.transactions.bulkPut(transactions);
       if (data.historicalPrices) await db.historicalPrices.bulkPut(data.historicalPrices);
       if (data.portfolioHistory) await db.portfolioHistory.bulkPut(data.portfolioHistory);
       if (data.preferences) await db.preferences.bulkPut(data.preferences);

@@ -54,22 +54,75 @@ db.version(3).stores({
   exchangeRates: '[type+date], type, date',
 });
 
+db.version(4).stores({
+  accounts: 'id, name, createdAt',
+  transactions: 'id, date, accountId, symbol, assetClass, type',
+  historicalPrices: '[symbol+date], symbol, date, close',
+  portfolioHistory: 'date, value',
+  priceCache: 'symbol, price, timestamp',
+  preferences: 'key',
+  exchangeRates: '[type+date], type, date',
+}).upgrade(async (tx) => {
+  const oldAccounts = await tx.table('accounts').toArray();
+  const oldTransactions = await tx.table('transactions').toArray();
+
+  localStorage.setItem(
+    'neto-pre-v4-backup',
+    JSON.stringify({
+      accounts: oldAccounts,
+      transactions: oldTransactions,
+      exportedAt: new Date().toISOString(),
+    })
+  );
+
+  const idMap = new Map<unknown, string>();
+  const newAccounts = oldAccounts.map((a: Record<string, unknown>) => {
+    const newId = crypto.randomUUID();
+    idMap.set(a.id, newId);
+    return {
+      ...a,
+      id: newId,
+      updatedAt: a.createdAt,
+    };
+  });
+
+  const newTransactions = oldTransactions.map((t: Record<string, unknown>) => {
+    const newId = crypto.randomUUID();
+    const newAccountId = idMap.get(t.accountId);
+    if (!newAccountId) throw new Error(`Missing account mapping for transaction ${String(t.id)}`);
+    return {
+      ...t,
+      id: newId,
+      accountId: newAccountId,
+      updatedAt: t.date,
+      createdAt: t.date,
+    };
+  });
+
+  await tx.table('accounts').clear();
+  await tx.table('accounts').bulkPut(newAccounts);
+  await tx.table('transactions').clear();
+  await tx.table('transactions').bulkPut(newTransactions);
+});
+
 export { db };
 
 export async function getAccounts(): Promise<Account[]> {
   return db.accounts.toArray();
 }
 
-export async function addAccount(account: Omit<Account, 'id'>): Promise<number> {
-  const id = await db.accounts.add(account as Account);
-  return id as number;
+export async function addAccount(account: Omit<Account, 'id' | 'updatedAt'>): Promise<string> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  await db.accounts.add({ ...account, id, updatedAt: now });
+  return id;
 }
 
-export async function updateAccount(id: number, changes: Partial<Account>): Promise<void> {
-  await db.accounts.update(id, changes);
+export async function updateAccount(id: string, changes: Partial<Account>): Promise<void> {
+  await db.accounts.update(id, { ...changes, updatedAt: new Date().toISOString() });
 }
 
-export async function deleteAccount(id: number): Promise<void> {
+export async function deleteAccount(id: string): Promise<void> {
   await db.accounts.delete(id);
 }
 
@@ -81,16 +134,18 @@ export async function getTransactionsUpToDate(date: string): Promise<Transaction
   return db.transactions.where('date').belowOrEqual(date).toArray();
 }
 
-export async function addTransaction(transaction: Omit<Transaction, 'id'>): Promise<number> {
-  const id = await db.transactions.add(transaction as Transaction);
-  return id as number;
+export async function addTransaction(transaction: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'>): Promise<string> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  await db.transactions.add({ ...transaction, id, updatedAt: now, createdAt: now });
+  return id;
 }
 
-export async function updateTransaction(id: number, changes: Partial<Transaction>): Promise<void> {
-  await db.transactions.update(id, changes);
+export async function updateTransaction(id: string, changes: Partial<Transaction>): Promise<void> {
+  await db.transactions.update(id, { ...changes, updatedAt: new Date().toISOString() });
 }
 
-export async function deleteTransaction(id: number): Promise<void> {
+export async function deleteTransaction(id: string): Promise<void> {
   await db.transactions.delete(id);
 }
 

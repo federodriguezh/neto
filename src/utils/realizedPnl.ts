@@ -10,7 +10,7 @@ export function calculateRealizedPnl(
     .filter((t) => t.symbol === sellTx.symbol)
     .sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
-      return (a.id ?? 0) - (b.id ?? 0);
+      return a.createdAt.localeCompare(b.createdAt);
     });
 
   let remainingSellQty = sellTx.quantity;

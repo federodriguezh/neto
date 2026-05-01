@@ -5,7 +5,7 @@ import { calculateFees } from '../utils/fees';
 interface TransactionFormProps {
   accounts: Account[];
   initial?: Transaction;
-  onSubmit: (tx: Omit<Transaction, 'id'>) => void;
+  onSubmit: (tx: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'>) => void;
   onCancel?: () => void;
 }
 
@@ -16,7 +16,7 @@ const ASSET_CLASSES: { value: AssetClass; label: string }[] = [
 ];
 
 export default function TransactionForm({ accounts, initial, onSubmit, onCancel }: TransactionFormProps) {
-  const [accountId, setAccountId] = useState<number>(initial?.accountId ?? (accounts[0]?.id || 0));
+  const [accountId, setAccountId] = useState<string>(initial?.accountId ?? (accounts[0]?.id || ''));
   const [symbol, setSymbol] = useState(initial?.symbol ?? '');
   const [assetClass, setAssetClass] = useState<AssetClass>(initial?.assetClass ?? 'arg_stocks');
   const [type, setType] = useState<TransactionType>(initial?.type ?? 'buy');
@@ -27,7 +27,7 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
   const feesManuallyEdited = useRef(false);
 
   useEffect(() => {
-    setAccountId(initial?.accountId ?? (accounts[0]?.id || 0));
+    setAccountId(initial?.accountId ?? (accounts[0]?.id || ''));
     setSymbol(initial?.symbol ?? '');
     setAssetClass(initial?.assetClass ?? 'arg_stocks');
     setType(initial?.type ?? 'buy');
@@ -47,7 +47,7 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
     if (!account || qtyNum <= 0 || priceNum <= 0) return;
 
     const autoFees = calculateFees(
-      { accountId, symbol: symbol.trim().toUpperCase(), assetClass, type, date, quantity: qtyNum, price: priceNum, fees: 0, currency: 'ARS' },
+      { assetClass, quantity: qtyNum, price: priceNum },
       account
     );
     setFees(autoFees.toFixed(2));
@@ -81,7 +81,7 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
           <select
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
             value={accountId}
-            onChange={(e) => setAccountId(Number(e.target.value))}
+            onChange={(e) => setAccountId(e.target.value)}
           >
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>{a.name}</option>

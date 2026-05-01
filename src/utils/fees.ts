@@ -1,6 +1,6 @@
 import type { Transaction, Account } from '../types';
 
-export function calculateFees(tx: Transaction, account: Account): number {
+export function calculateFees(tx: Pick<Transaction, 'quantity' | 'price' | 'assetClass'>, account: Account): number {
   const base = tx.quantity * tx.price;
 
   let commission = 0;

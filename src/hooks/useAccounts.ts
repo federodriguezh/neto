@@ -22,12 +22,12 @@ export function useAccounts() {
     return id;
   }, [refresh]);
 
-  const update = useCallback(async (id: number, changes: Partial<Account>) => {
+  const update = useCallback(async (id: string, changes: Partial<Account>) => {
     await updateAccount(id, changes);
     await refresh();
   }, [refresh]);
 
-  const remove = useCallback(async (id: number) => {
+  const remove = useCallback(async (id: string) => {
     await deleteAccount(id);
     await refresh();
   }, [refresh]);
