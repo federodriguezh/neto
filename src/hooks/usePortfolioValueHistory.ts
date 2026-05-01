@@ -46,8 +46,9 @@ function replayTransactions(transactions: Transaction[], upToDate: string): Date
   }
 
   const result: DateHolding[] = [];
+  const EPSILON = 1e-9;
   for (const [symbol, data] of map.entries()) {
-    if (data.quantity > 0) {
+    if (data.quantity > EPSILON) {
       result.push({ symbol, assetClass: data.assetClass, quantity: data.quantity });
     }
   }

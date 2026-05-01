@@ -3,10 +3,9 @@ import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { useAccounts } from '../hooks/useAccounts';
 import { useDisplayCurrency } from '../hooks/useDisplayCurrency';
 import { useTranslation } from '../i18n';
-import { getTransactions, addTransaction, updateTransaction, deleteTransaction, getExchangeRatesForType } from '../db';
+import { getTransactions, addTransaction, updateTransaction, deleteTransaction, getExchangeRatesForType, updateAllRealizedPnl } from '../db';
 import type { Transaction, ExchangeRate } from '../types';
 import TransactionForm from '../components/TransactionForm';
-import { calculateRealizedPnl } from '../utils/realizedPnl';
 import { convertArsToUsd, formatCurrency } from '../utils/currency';
 
 function buildRateMap(rates: ExchangeRate[]): Map<string, number> {
@@ -72,28 +71,16 @@ export default function TransactionsPage() {
   const rateMap = useMemo(() => buildRateMap(exchangeRates), [exchangeRates]);
 
   const handleAdd = async (tx: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'>) => {
-    let txToSave: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'> = tx;
-    if (tx.type === 'sell') {
-      const allTxs = await getTransactions();
-      const pnl = calculateRealizedPnl(tx as Transaction, allTxs);
-      txToSave = { ...tx, realizedPnl: pnl };
-    }
-    await addTransaction(txToSave);
+    await addTransaction(tx);
+    await updateAllRealizedPnl();
     await refresh();
     setShowForm(false);
   };
 
   const handleUpdate = async (tx: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'>) => {
     if (editing?.id !== undefined) {
-      let changes: Partial<Transaction> = tx;
-      if (tx.type === 'sell') {
-        const allTxs = (await getTransactions()).filter((t) => t.id !== editing.id);
-        const pnl = calculateRealizedPnl({ ...tx, id: editing.id } as Transaction, allTxs);
-        changes = { ...tx, realizedPnl: pnl };
-      } else {
-        changes = { ...tx, realizedPnl: undefined };
-      }
-      await updateTransaction(editing.id, changes);
+      await updateTransaction(editing.id, tx);
+      await updateAllRealizedPnl();
       await refresh();
       setEditing(undefined);
     }
@@ -102,6 +89,7 @@ export default function TransactionsPage() {
   const handleDelete = async (id: string) => {
     if (confirm(t('transactions.deleteConfirm'))) {
       await deleteTransaction(id);
+      await updateAllRealizedPnl();
       await refresh();
     }
   };

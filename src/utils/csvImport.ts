@@ -1,6 +1,8 @@
 import type { AssetClass, TransactionType } from '../types';
 import { addAccount, getAccounts, db } from '../db';
 import { normalizeDate } from './date';
+import { convertTransactionToArs } from './convertToArs';
+import { ensureHistoricalExchangeRates } from '../api/exchangeRates';
 
 interface CsvImportResult {
   transactions: Array<{
@@ -49,6 +51,9 @@ export async function importCsv(csvText: string): Promise<CsvImportResult> {
   if (lines.length < 2) {
     return { transactions: [], errors: ['CSV must have at least a header row and one data row'], count: 0 };
   }
+
+  await ensureHistoricalExchangeRates('mep');
+  await ensureHistoricalExchangeRates('ccl');
 
   const headers = parseCsvLine(lines[0]).map(normalizeHeader);
   const colIndex = new Map<string, number>();
@@ -135,6 +140,8 @@ export async function importCsv(csvText: string): Promise<CsvImportResult> {
     csvKeySet.add(dupKey);
     existingKeySet.add(dupKey);
 
+    const converted = await convertTransactionToArs(date!, price, fees, currency);
+
     transactions.push({
       date: date!,
       accountId,
@@ -142,9 +149,9 @@ export async function importCsv(csvText: string): Promise<CsvImportResult> {
       assetClass,
       type,
       quantity,
-      price,
-      fees,
-      currency,
+      price: converted.price,
+      fees: converted.fees,
+      currency: converted.currency,
     });
   }
 

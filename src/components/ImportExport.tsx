@@ -1,11 +1,12 @@
 import { useCallback } from 'react';
 import { Download, Upload, FileSpreadsheet } from 'lucide-react';
-import { db, addTransaction } from '../db';
+import { db, addTransaction, updateAllRealizedPnl } from '../db';
 import type { Account, AssetClass, TransactionType } from '../types';
 import { useTranslation } from '../i18n';
 import { importCsv } from '../utils/csvImport';
 import { normalizeDate } from '../utils/date';
-import { calculateRealizedPnl } from '../utils/realizedPnl';
+import { convertTransactionToArs } from '../utils/convertToArs';
+import { ensureHistoricalExchangeRates } from '../api/exchangeRates';
 
 const CSV_TEMPLATE = `date,account,symbol,assetClass,type,quantity,price,fees,currency
 2024-01-15,MyBroker,GGAL,arg_stocks,buy,100,2500.50,12.63,ARS
@@ -108,15 +109,12 @@ export default function ImportExport() {
 
       transactions = transactions.map((t: Record<string, unknown>) => {
         const tx = { ...t };
-        // Normalize type
         if (typeof tx.type === 'string') {
           tx.type = tx.type.toLowerCase().trim() as TransactionType;
         }
-        // Normalize assetClass
         if (typeof tx.assetClass === 'string') {
           tx.assetClass = tx.assetClass.trim() as AssetClass;
         }
-        // Normalize date
         tx.date = normalizeDate(tx.date as string) || tx.date;
         return tx;
       });
@@ -158,21 +156,38 @@ export default function ImportExport() {
         }));
         await db.accounts.bulkPut(accounts);
       }
+
+      // Import exchange rates first (needed for currency conversion)
+      if (data.exchangeRates) await db.exchangeRates.bulkPut(data.exchangeRates);
+      await ensureHistoricalExchangeRates('mep');
+      await ensureHistoricalExchangeRates('ccl');
+
+      // Convert all transaction prices to ARS
       if (transactions.length > 0) {
-        await db.transactions.bulkPut(transactions);
+        const converted: typeof transactions = [];
+        for (const tx of transactions) {
+          const t = tx as Record<string, unknown>;
+          const normalized = await convertTransactionToArs(
+            t.date as string,
+            Number(t.price),
+            Number(t.fees ?? 0),
+            (t.currency as string) || 'ARS'
+          );
+          converted.push({
+            ...t,
+            price: normalized.price,
+            fees: normalized.fees,
+            currency: normalized.currency,
+          });
+        }
+        await db.transactions.bulkPut(converted);
       }
+
       if (data.historicalPrices) await db.historicalPrices.bulkPut(data.historicalPrices);
       if (data.preferences) await db.preferences.bulkPut(data.preferences);
-      if (data.exchangeRates) await db.exchangeRates.bulkPut(data.exchangeRates);
 
-      // Compute realized P&L for all imported sells
-      const allTxs = await db.transactions.toArray();
-      for (const tx of allTxs) {
-        if (tx.type === 'sell') {
-          const pnl = calculateRealizedPnl(tx, allTxs);
-          await db.transactions.update(tx.id, { realizedPnl: pnl });
-        }
-      }
+      // Batch-compute realized P&L for all sells using FIFO
+      await updateAllRealizedPnl();
 
       window.location.reload();
     } catch {

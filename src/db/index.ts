@@ -235,3 +235,13 @@ export async function putExchangeRates(rates: ExchangeRate[]): Promise<void> {
 export async function clearExchangeRates(): Promise<void> {
   await db.exchangeRates.clear();
 }
+
+import { recalculateAllRealizedPnl } from '../utils/realizedPnlBatch';
+
+export async function updateAllRealizedPnl(): Promise<void> {
+  const allTxs = await db.transactions.toArray();
+  const pnls = recalculateAllRealizedPnl(allTxs);
+  for (const [id, pnl] of pnls.entries()) {
+    await db.transactions.update(id, { realizedPnl: pnl });
+  }
+}

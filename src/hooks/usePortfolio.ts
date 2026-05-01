@@ -46,9 +46,10 @@ export function usePortfolio(date?: string) {
 
     const result: Holding[] = [];
     const shorts: { symbol: string; assetClass: AssetClass; quantity: number }[] = [];
+    const EPSILON = 1e-9;
 
     for (const [symbol, data] of map.entries()) {
-      if (data.quantity > 0) {
+      if (data.quantity > EPSILON) {
         const avgCost = data.totalCost / data.quantity;
         result.push({
           symbol,
@@ -58,7 +59,7 @@ export function usePortfolio(date?: string) {
           marketValue: 0,
           unrealizedPnl: 0,
         });
-      } else if (data.quantity < 0) {
+      } else if (data.quantity < -EPSILON) {
         shorts.push({ symbol, assetClass: data.assetClass, quantity: data.quantity });
       }
     }
