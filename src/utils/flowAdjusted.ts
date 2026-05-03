@@ -9,7 +9,7 @@ import type { Transaction, PortfolioHistory } from '../types';
  *
  * Formula (beginning-of-day cash-flow assumption):
  *   r_t = MV_t / (MV_{t-1} + CF_t) - 1
- * where CF_t = sum(buy values) - sum(sell values) on day t.
+ * where CF_t = sum(buy gross cash outflows) - sum(sell net inflows) on day t.
  */
 export function computeFlowAdjustedIndex(
   history: PortfolioHistory[],
@@ -20,12 +20,13 @@ export function computeFlowAdjustedIndex(
   // Build a map of date -> net cash flow
   const cfMap = new Map<string, number>();
   for (const tx of transactions) {
-    const value = tx.quantity * tx.price;
     const existing = cfMap.get(tx.date) ?? 0;
     if (tx.type === 'buy') {
-      cfMap.set(tx.date, existing + value);
+      const buyOutflow = tx.quantity * tx.price + tx.fees;
+      cfMap.set(tx.date, existing + buyOutflow);
     } else {
-      cfMap.set(tx.date, existing - value);
+      const sellInflow = tx.quantity * tx.price - tx.fees;
+      cfMap.set(tx.date, existing - sellInflow);
     }
   }
 

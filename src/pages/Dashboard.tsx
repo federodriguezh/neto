@@ -49,10 +49,20 @@ export default function Dashboard() {
     return convertedHistory.filter((h) => h.date >= cutoffStr);
   }, [convertedHistory, range]);
 
+  const filteredHistoryArs = useMemo(() => {
+    if (range === 'max') return history;
+    const days = parseInt(range, 10);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
+    return history.filter((h) => h.date >= cutoffStr);
+  }, [history, range]);
+
   // SPY comparison (only in USD modes)
   const { data: comparisonData } = useSpyComparison(
-    filteredHistory,
+    filteredHistoryArs,
     transactions,
+    displayCurrency,
     comparisonMode && displayCurrency !== 'ARS'
   );
 

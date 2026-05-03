@@ -69,16 +69,10 @@ export async function getExchangeRateForDate(
   const exact = allRates.find((r) => r.date === targetDate);
   if (exact) return exact.rate;
 
-  // Backward-fill: latest rate before target date
+  // Backward-fill only: latest rate before target date
   const before = allRates.filter((r) => r.date < targetDate);
   if (before.length > 0) {
     return before[before.length - 1].rate;
-  }
-
-  // Forward-fill as last resort: earliest rate after target date
-  const after = allRates.filter((r) => r.date > targetDate);
-  if (after.length > 0) {
-    return after[0].rate;
   }
 
   return undefined;

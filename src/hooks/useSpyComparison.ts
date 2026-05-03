@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import type { PortfolioHistory, Transaction } from '../types';
+import type { PortfolioHistory, Transaction, DisplayCurrency } from '../types';
 import { fetchSpyHistory } from '../api/spy';
 import { computeFlowAdjustedIndex } from '../utils/flowAdjusted';
+import { getExchangeRateForDate } from '../api/exchangeRates';
 
 export interface ComparisonPoint {
   date: string;
@@ -43,15 +44,16 @@ function computeSpyIndex(spyBars: Array<{ date: string; close: number }>): Portf
 }
 
 export function useSpyComparison(
-  portfolioHistory: PortfolioHistory[],
+  portfolioHistoryArs: PortfolioHistory[],
   transactions: Transaction[],
+  displayCurrency: DisplayCurrency,
   enabled: boolean
 ) {
   const [data, setData] = useState<ComparisonPoint[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!enabled || portfolioHistory.length === 0) {
+    if (!enabled || portfolioHistoryArs.length === 0) {
       setData([]);
       return;
     }
@@ -63,8 +65,36 @@ export function useSpyComparison(
         const spyBars = await fetchSpyHistory();
         if (cancelled) return;
 
-        // Flow-adjusted portfolio index
-        const portfolioIndex = computeFlowAdjustedIndex(portfolioHistory, transactions);
+        const historyForComparison: PortfolioHistory[] = [];
+        for (const entry of portfolioHistoryArs) {
+          if (displayCurrency === 'ARS') {
+            historyForComparison.push(entry);
+            continue;
+          }
+          const rate = await getExchangeRateForDate(displayCurrency === 'MEP' ? 'mep' : 'ccl', entry.date);
+          if (rate !== undefined && rate > 0) {
+            historyForComparison.push({ date: entry.date, value: entry.value / rate });
+          }
+        }
+
+        const txForComparison: Transaction[] = [];
+        for (const tx of transactions) {
+          if (displayCurrency === 'ARS') {
+            txForComparison.push(tx);
+            continue;
+          }
+          const rate = await getExchangeRateForDate(displayCurrency === 'MEP' ? 'mep' : 'ccl', tx.date);
+          if (rate !== undefined && rate > 0) {
+            txForComparison.push({
+              ...tx,
+              price: tx.price / rate,
+              fees: tx.fees / rate,
+            });
+          }
+        }
+
+        // Flow-adjusted portfolio index in selected display currency
+        const portfolioIndex = computeFlowAdjustedIndex(historyForComparison, txForComparison);
 
         // SPY chained-return index
         const spyIndex = computeSpyIndex(spyBars);
@@ -109,7 +139,7 @@ export function useSpyComparison(
 
     load();
     return () => { cancelled = true; };
-  }, [portfolioHistory, transactions, enabled]);
+  }, [portfolioHistoryArs, transactions, displayCurrency, enabled]);
 
   return { data, loading };
 }
