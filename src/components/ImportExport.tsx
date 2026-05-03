@@ -115,7 +115,13 @@ export default function ImportExport() {
         if (typeof tx.assetClass === 'string') {
           tx.assetClass = tx.assetClass.trim() as AssetClass;
         }
+        if (typeof tx.symbol === 'string') {
+          tx.symbol = tx.symbol.trim().toUpperCase();
+        }
         tx.date = normalizeDate(tx.date as string) || tx.date;
+        tx.quantity = Number(tx.quantity);
+        tx.price = Number(tx.price);
+        tx.fees = Number(tx.fees ?? 0);
         return tx;
       });
 
@@ -125,6 +131,7 @@ export default function ImportExport() {
         const rowErrors: string[] = [];
         if (!VALID_TYPES.includes(tx.type as TransactionType)) rowErrors.push(`invalid type: ${tx.type}`);
         if (!VALID_ASSET_CLASSES.includes(tx.assetClass as AssetClass)) rowErrors.push(`invalid assetClass: ${tx.assetClass}`);
+        if (typeof tx.symbol !== 'string' || tx.symbol.length === 0) rowErrors.push(`invalid symbol: ${tx.symbol}`);
         const qty = Number(tx.quantity);
         if (!Number.isFinite(qty) || qty <= 0) rowErrors.push(`invalid quantity: ${tx.quantity}`);
         const price = Number(tx.price);

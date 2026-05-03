@@ -8,6 +8,7 @@ import { useDisplayCurrency } from '../hooks/useDisplayCurrency';
 import { useLiveExchangeRate } from '../hooks/useLiveExchangeRate';
 import { useConvertedHistory } from '../hooks/useConvertedHistory';
 import { useSpyComparison } from '../hooks/useSpyComparison';
+import { useRealizedPnlConverted } from '../hooks/useRealizedPnlConverted';
 import { useTranslation } from '../i18n';
 import { convertArsToUsd, formatCurrency } from '../utils/currency';
 import PortfolioChart from '../components/PortfolioChart';
@@ -19,9 +20,10 @@ import type { Range } from '../components/RangeSelector';
 
 export default function Dashboard() {
   const { t } = useTranslation();
-  const { holdings, totalRealizedPnl, loading: holdingsLoading, shortPositions } = usePortfolio();
+  const { holdings, transactions, loading: holdingsLoading, shortPositions } = usePortfolio();
   const { history } = usePortfolioValueHistory();
   const { displayCurrency } = useDisplayCurrency();
+  const { convertedPnl: totalRealizedPnl, loading: pnlLoading } = useRealizedPnlConverted(transactions, displayCurrency);
 
   const [range, setRange] = useState<Range>('30');
   const [comparisonMode, setComparisonMode] = useState(false);
@@ -50,6 +52,7 @@ export default function Dashboard() {
   // SPY comparison (only in USD modes)
   const { data: comparisonData } = useSpyComparison(
     filteredHistory,
+    transactions,
     comparisonMode && displayCurrency !== 'ARS'
   );
 
@@ -78,7 +81,7 @@ export default function Dashboard() {
     return holdings.some((h) => yesterdayPrices[h.symbol] !== undefined);
   }, [holdings, yesterdayPrices]);
 
-  const isLoading = holdingsLoading || pricesLoading || yesterdayPricesLoading;
+  const isLoading = holdingsLoading || pricesLoading || yesterdayPricesLoading || pnlLoading;
 
   const totalValue = exchangeRateType && liveRate
     ? convertArsToUsd(totalValueArs, liveRate)
@@ -88,9 +91,7 @@ export default function Dashboard() {
     ? convertArsToUsd(dailyChangeArs, liveRate)
     : dailyChangeArs;
 
-  const realizedPnlDisplay = exchangeRateType && liveRate
-    ? convertArsToUsd(totalRealizedPnl, liveRate)
-    : totalRealizedPnl;
+  const realizedPnlDisplay = totalRealizedPnl;
 
   return (
     <div className="flex flex-col gap-6">

@@ -7,6 +7,13 @@ interface BuyLot {
   remainingQuantity: number;
 }
 
+export interface PnlDiagnostics {
+  symbol: string;
+  sellDate: string;
+  sellQty: number;
+  unmatchedQty: number;
+}
+
 /**
  * Batch-compute realized P&L for ALL sell transactions using FIFO.
  * Returns a Map<transactionId, realizedPnl>.
@@ -16,14 +23,16 @@ interface BuyLot {
  */
 export function recalculateAllRealizedPnl(
   transactions: Transaction[]
-): Map<string, number> {
+): { pnls: Map<string, number>; diagnostics: PnlDiagnostics[] } {
   const sorted = [...transactions].sort((a, b) => {
     if (a.date !== b.date) return a.date.localeCompare(b.date);
-    return (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
+    if (a.createdAt !== b.createdAt) return (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
+    return a.id.localeCompare(b.id);
   });
 
   const buyQueues = new Map<string, BuyLot[]>();
-  const result = new Map<string, number>();
+  const pnls = new Map<string, number>();
+  const diagnostics: PnlDiagnostics[] = [];
 
   for (const tx of sorted) {
     if (tx.type === 'buy') {
@@ -53,10 +62,19 @@ export function recalculateAllRealizedPnl(
         }
       }
 
+      if (remainingSellQty > 0) {
+        diagnostics.push({
+          symbol: tx.symbol,
+          sellDate: tx.date,
+          sellQty: tx.quantity,
+          unmatchedQty: remainingSellQty,
+        });
+      }
+
       const proceeds = tx.quantity * tx.price - tx.fees;
-      result.set(tx.id, proceeds - costBasis);
+      pnls.set(tx.id, proceeds - costBasis);
     }
   }
 
-  return result;
+  return { pnls, diagnostics };
 }
