@@ -7,6 +7,7 @@ export interface Account {
   name: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
   feeType: 'fixed' | 'percentage';
   feeValue: number;
 }
@@ -25,6 +26,7 @@ export interface Transaction {
   realizedPnl?: number;
   updatedAt: string;
   createdAt: string;
+  deletedAt?: string;
 }
 
 export interface HistoricalPrice {

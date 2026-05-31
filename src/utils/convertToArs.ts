@@ -1,7 +1,6 @@
 /**
  * Convert transaction prices/fees from MEP/CCL to ARS using historical rates.
- * Falls back to nearest available date (backward, then forward).
- * Unknown currencies are kept as-is with a warning.
+ * Refuses to silently relabel unconverted values as ARS.
  */
 import { getExchangeRateForDate } from '../api/exchangeRates';
 
@@ -28,14 +27,8 @@ export async function convertTransactionToArs(
         currency: 'ARS',
       };
     }
-    console.warn(
-      `[convertToArs] No exchange rate found for ${normalized} on ${date}; keeping price as-is`
-    );
-    return { price, fees, currency: 'ARS' };
+    throw new Error(`No exchange rate found for ${normalized} on ${date}`);
   }
 
-  console.warn(
-    `[convertToArs] Unknown currency "${normalized}" for ${date}; keeping price as-is`
-  );
-  return { price, fees, currency: 'ARS' };
+  throw new Error(`Unsupported currency "${normalized}" for ${date}`);
 }

@@ -28,6 +28,7 @@ export const en: Record<string, string> = {
   'dashboard.loading': '—',
   'dashboard.shortPositions': 'Short / Orphan Positions',
   'dashboard.shortPositionsDescription': 'These symbols have more sells than buys and are not included in holdings:',
+  'dashboard.liveMep': 'Dolar MEP',
 
   // Transactions
   'transactions.title': 'Transactions',
@@ -42,6 +43,9 @@ export const en: Record<string, string> = {
   'transactions.realizedPnl': 'Realized P&L',
   'transactions.none': 'No transactions yet.',
   'transactions.deleteConfirm': 'Delete this transaction?',
+  'transactions.edit': 'Edit transaction',
+  'transactions.delete': 'Delete transaction',
+  'transactions.oversell': 'This sell exceeds the available quantity for that account, symbol and asset class.',
 
   // Transaction Form
   'form.account': 'Account',
@@ -96,6 +100,9 @@ export const en: Record<string, string> = {
   'settings.dangerZone': 'Danger Zone',
   'settings.clearAll': 'Clear All Data',
   'settings.deleteV3Backup': 'Delete v3 Backup',
+  'settings.fixedFeeValue': '${{value}} fixed',
+  'settings.editAccount': 'Edit account',
+  'settings.deleteAccount': 'Delete account',
 
   // Sync
   'sync.title': 'Encrypted Cloud Sync',
@@ -122,6 +129,10 @@ export const en: Record<string, string> = {
   'sync.error.invalidToken': 'Invalid token',
   'sync.error.rateLimit': 'GitHub API rate limit exceeded',
   'sync.error.gistNotFound': 'Gist not found',
+  'sync.showPat': 'Show GitHub token',
+  'sync.hidePat': 'Hide GitHub token',
+  'sync.showPassphrase': 'Show sync passphrase',
+  'sync.hidePassphrase': 'Hide sync passphrase',
 
   // Import/Export
   'import.invalidFile': 'Invalid import file',
@@ -200,6 +211,7 @@ export const es: Record<string, string> = {
   'dashboard.loading': '—',
   'dashboard.shortPositions': 'Posiciones Cortas / Huérfanas',
   'dashboard.shortPositionsDescription': 'Estos símbolos tienen más ventas que compras y no se incluyen en las posiciones:',
+  'dashboard.liveMep': 'Dolar MEP',
 
   // Transactions
   'transactions.title': 'Transacciones',
@@ -214,6 +226,9 @@ export const es: Record<string, string> = {
   'transactions.realizedPnl': 'P&L Realizado',
   'transactions.none': 'Aún no hay transacciones.',
   'transactions.deleteConfirm': '¿Eliminar esta transacción?',
+  'transactions.edit': 'Editar transacción',
+  'transactions.delete': 'Eliminar transacción',
+  'transactions.oversell': 'Esta venta supera la cantidad disponible para esa cuenta, símbolo y clase de activo.',
 
   // Transaction Form
   'form.account': 'Cuenta',
@@ -268,6 +283,9 @@ export const es: Record<string, string> = {
   'settings.dangerZone': 'Zona de Peligro',
   'settings.clearAll': 'Borrar Todos los Datos',
   'settings.deleteV3Backup': 'Eliminar Respaldo v3',
+  'settings.fixedFeeValue': '${{value}} fijo',
+  'settings.editAccount': 'Editar cuenta',
+  'settings.deleteAccount': 'Eliminar cuenta',
 
   // Sync
   'sync.title': 'Sincronización Encriptada en la Nube',
@@ -294,6 +312,10 @@ export const es: Record<string, string> = {
   'sync.error.invalidToken': 'Token inválido',
   'sync.error.rateLimit': 'Límite de solicitudes de la API de GitHub excedido',
   'sync.error.gistNotFound': 'Gist no encontrado',
+  'sync.showPat': 'Mostrar token de GitHub',
+  'sync.hidePat': 'Ocultar token de GitHub',
+  'sync.showPassphrase': 'Mostrar contraseña de sincro',
+  'sync.hidePassphrase': 'Ocultar contraseña de sincro',
 
   // Import/Export
   'import.invalidFile': 'Archivo de importación inválido',

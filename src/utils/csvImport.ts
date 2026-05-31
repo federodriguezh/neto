@@ -76,7 +76,7 @@ export async function importCsv(csvText: string): Promise<CsvImportResult> {
   const errors: string[] = [];
 
   // Load existing transactions for duplicate detection
-  const existingTxs = await db.transactions.toArray();
+  const existingTxs = await db.transactions.filter((tx) => tx.deletedAt === undefined).toArray();
   const existingKeySet = new Set(
     existingTxs.map((t) => `${t.date}|${t.accountId}|${t.symbol}|${t.type}|${t.quantity}|${t.price}`)
   );

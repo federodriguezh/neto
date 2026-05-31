@@ -28,8 +28,6 @@ export function useRealizedPnlConverted(
         const rate = await getExchangeRateForDate(type, tx.date);
         if (rate !== undefined && rate > 0) {
           total += tx.realizedPnl / rate;
-        } else {
-          total += tx.realizedPnl;
         }
       }
 

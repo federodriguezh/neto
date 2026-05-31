@@ -18,36 +18,31 @@ interface SyncState {
 }
 
 function loadPassphrase(): string {
-  return localStorage.getItem('neto-sync-passphrase') ?? '';
+  localStorage.removeItem('neto-sync-passphrase');
+  return '';
 }
 
 function savePassphrase(value: string): void {
-  if (value) {
-    localStorage.setItem('neto-sync-passphrase', value);
-  } else {
-    localStorage.removeItem('neto-sync-passphrase');
-  }
+  void value;
+  localStorage.removeItem('neto-sync-passphrase');
 }
 
-async function loadSyncPrefs(): Promise<Pick<SyncState, 'enabled' | 'pat' | 'gistId' | 'lastSyncAt'>> {
-  const [enabledPref, patPref, gistPref, lastPref] = await Promise.all([
+async function loadSyncPrefs(): Promise<Pick<SyncState, 'enabled' | 'gistId' | 'lastSyncAt'>> {
+  const [enabledPref, gistPref, lastPref] = await Promise.all([
     getPreference('syncEnabled'),
-    getPreference('syncPat'),
     getPreference('syncGistId'),
     getPreference('syncLastAt'),
   ]);
   return {
     enabled: enabledPref?.value === true,
-    pat: (patPref?.value as string) ?? '',
     gistId: (gistPref?.value as string) ?? null,
     lastSyncAt: (lastPref?.value as string) ?? null,
   };
 }
 
-async function saveSyncPrefs(state: Pick<SyncState, 'enabled' | 'pat' | 'gistId' | 'lastSyncAt'>): Promise<void> {
+async function saveSyncPrefs(state: Pick<SyncState, 'enabled' | 'gistId' | 'lastSyncAt'>): Promise<void> {
   await Promise.all([
     setPreference('syncEnabled', state.enabled),
-    setPreference('syncPat', state.pat),
     setPreference('syncGistId', state.gistId),
     setPreference('syncLastAt', state.lastSyncAt),
   ]);
@@ -69,15 +64,32 @@ async function buildLocalPayload(): Promise<SyncPayload> {
 }
 
 async function writeMergedData(merged: SyncPayload): Promise<void> {
-  await Promise.all([
-    db.accounts.clear().then(() => db.accounts.bulkPut(merged.accounts)),
-    db.transactions.clear().then(() => db.transactions.bulkPut(merged.transactions)),
-  ]);
-  // Merge preferences without touching sync prefs
-  const existingPrefs = await db.preferences.toArray();
-  const syncPrefs = existingPrefs.filter((p) => SYNC_PREF_KEYS.has(p.key));
-  await db.preferences.clear();
-  await db.preferences.bulkPut([...merged.preferences, ...syncPrefs]);
+  await db.transaction('rw', [db.accounts, db.transactions, db.preferences], async () => {
+    await Promise.all([
+      db.accounts.clear().then(() => db.accounts.bulkPut(merged.accounts)),
+      db.transactions.clear().then(() => db.transactions.bulkPut(merged.transactions)),
+    ]);
+    // Merge preferences without touching sync prefs
+    const existingPrefs = await db.preferences.toArray();
+    const syncPrefs = existingPrefs.filter((p) => SYNC_PREF_KEYS.has(p.key));
+    await db.preferences.clear();
+    await db.preferences.bulkPut([...merged.preferences, ...syncPrefs]);
+  });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isSyncPayload(value: unknown): value is SyncPayload {
+  if (!isRecord(value)) return false;
+  return (
+    value.version === 1 &&
+    typeof value.exportedAt === 'string' &&
+    Array.isArray(value.accounts) &&
+    Array.isArray(value.transactions) &&
+    Array.isArray(value.preferences)
+  );
 }
 
 export function useSync() {
@@ -126,21 +138,24 @@ export function useSync() {
   }, [state.enabled, state.pat, state.passphrase, state.gistId]);
 
   const setEnabled = useCallback(async (enabled: boolean) => {
+    stateRef.current = { ...stateRef.current, enabled, status: 'idle', error: null };
     setState((s) => ({ ...s, enabled, status: 'idle', error: null }));
     await setPreference('syncEnabled', enabled);
   }, []);
 
   const setPat = useCallback(async (pat: string) => {
+    stateRef.current = { ...stateRef.current, pat };
     setState((s) => ({ ...s, pat }));
-    await setPreference('syncPat', pat);
   }, []);
 
   const setPassphrase = useCallback((passphrase: string) => {
     savePassphrase(passphrase);
+    stateRef.current = { ...stateRef.current, passphrase };
     setState((s) => ({ ...s, passphrase }));
   }, []);
 
   const setGistId = useCallback(async (gistId: string | null) => {
+    stateRef.current = { ...stateRef.current, gistId };
     setState((s) => ({ ...s, gistId }));
     await setPreference('syncGistId', gistId);
   }, []);
@@ -165,7 +180,7 @@ export function useSync() {
           const encrypted = await encrypt(JSON.stringify(local), passphrase);
           currentGistId = await createGist(encrypted, pat);
           await setGistId(currentGistId);
-          await saveSyncPrefs({ enabled, pat, gistId: currentGistId, lastSyncAt: new Date().toISOString() });
+          await saveSyncPrefs({ enabled, gistId: currentGistId, lastSyncAt: new Date().toISOString() });
           setState((s) => ({ ...s, gistId: currentGistId, status: 'success', lastSyncAt: new Date().toISOString() }));
           return;
         }
@@ -174,7 +189,11 @@ export function useSync() {
 
       // Fetch remote
       const remoteGist = await fetchGist(currentGistId, pat);
-      const remotePayload: SyncPayload = JSON.parse(await decrypt(remoteGist.content, passphrase));
+      const parsedRemote: unknown = JSON.parse(await decrypt(remoteGist.content, passphrase));
+      if (!isSyncPayload(parsedRemote)) {
+        throw new SyncError('Invalid sync payload');
+      }
+      const remotePayload = parsedRemote;
 
       // Build local payload
       const localPayload = await buildLocalPayload();
@@ -202,7 +221,7 @@ export function useSync() {
       }
 
       const now = new Date().toISOString();
-      await saveSyncPrefs({ enabled, pat, gistId: currentGistId, lastSyncAt: now });
+      await saveSyncPrefs({ enabled, gistId: currentGistId, lastSyncAt: now });
       setState((s) => ({ ...s, status: 'success', lastSyncAt: now, error: null }));
     } catch (err) {
       const message = err instanceof SyncError ? err.message : err instanceof Error ? err.message : 'Sync failed';

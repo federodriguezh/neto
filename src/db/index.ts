@@ -109,7 +109,7 @@ db.version(4).stores({
 export { db };
 
 export async function getAccounts(): Promise<Account[]> {
-  return db.accounts.toArray();
+  return db.accounts.filter((account) => account.deletedAt === undefined).toArray();
 }
 
 export async function addAccount(account: Omit<Account, 'id' | 'updatedAt'>): Promise<string> {
@@ -129,15 +129,16 @@ export async function updateAccount(id: string, changes: Partial<Account>): Prom
 }
 
 export async function deleteAccount(id: string): Promise<void> {
-  await db.accounts.delete(id);
+  const now = new Date().toISOString();
+  await db.accounts.update(id, { deletedAt: now, updatedAt: now });
 }
 
 export async function getTransactions(): Promise<Transaction[]> {
-  return db.transactions.orderBy('date').reverse().toArray();
+  return db.transactions.orderBy('date').reverse().filter((tx) => tx.deletedAt === undefined).toArray();
 }
 
 export async function getTransactionsUpToDate(date: string): Promise<Transaction[]> {
-  return db.transactions.where('date').belowOrEqual(date).toArray();
+  return db.transactions.where('date').belowOrEqual(date).filter((tx) => tx.deletedAt === undefined).toArray();
 }
 
 export async function addTransaction(transaction: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'>): Promise<string> {
@@ -157,7 +158,8 @@ export async function updateTransaction(id: string, changes: Partial<Transaction
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
-  await db.transactions.delete(id);
+  const now = new Date().toISOString();
+  await db.transactions.update(id, { deletedAt: now, updatedAt: now });
 }
 
 export async function getHistoricalPrice(symbol: string, date: string): Promise<HistoricalPrice | undefined> {
@@ -239,7 +241,7 @@ export async function clearExchangeRates(): Promise<void> {
 import { recalculateAllRealizedPnl } from '../utils/realizedPnlBatch';
 
 export async function updateAllRealizedPnl(): Promise<void> {
-  const allTxs = await db.transactions.toArray();
+  const allTxs = await db.transactions.filter((tx) => tx.deletedAt === undefined).toArray();
   const { pnls, diagnostics } = recalculateAllRealizedPnl(allTxs);
   for (const [id, pnl] of pnls.entries()) {
     await db.transactions.update(id, { realizedPnl: pnl });

@@ -52,6 +52,8 @@ export default function SettingsPage() {
   const handleClearAll = async () => {
     if (confirm(t('settings.clearAll') + ' — ' + t('misc.confirm'))) {
       await db.delete();
+      localStorage.removeItem('neto-sync-passphrase');
+      localStorage.removeItem('neto-pre-v4-backup');
       window.location.reload();
     }
   };
@@ -169,7 +171,7 @@ export default function SettingsPage() {
                   <div className="flex flex-col">
                     <span className="text-sm text-slate-200">{account.name}</span>
                     <span className="text-xs text-slate-500">
-                      {account.feeType === 'fixed' ? `$${account.feeValue} fixed` : `${account.feeValue}%`}
+                      {account.feeType === 'fixed' ? t('settings.fixedFeeValue', { value: String(account.feeValue) }) : `${account.feeValue}%`}
                     </span>
                   </div>
                   <div className="flex gap-2">
@@ -180,12 +182,14 @@ export default function SettingsPage() {
                         setEditingFeeType(account.feeType);
                         setEditingFeeValue(account.feeValue.toString());
                       }}
+                      aria-label={t('settings.editAccount')}
                       className="text-slate-400 hover:text-slate-200 transition-colors"
                     >
                       <Pencil size={14} />
                     </button>
                     <button
                       onClick={() => account.id !== undefined && remove(account.id)}
+                      aria-label={t('settings.deleteAccount')}
                       className="text-slate-400 hover:text-rose-400 transition-colors"
                     >
                       <Trash2 size={14} />
@@ -309,6 +313,7 @@ export default function SettingsPage() {
               />
               <button
                 onClick={() => setShowPat((s) => !s)}
+                aria-label={showPat ? t('sync.hidePat') : t('sync.showPat')}
                 className="rounded-lg bg-slate-700 px-3 py-2 text-slate-300 hover:bg-slate-600 transition-colors"
               >
                 {showPat ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -329,6 +334,7 @@ export default function SettingsPage() {
               />
               <button
                 onClick={() => setShowPassphrase((s) => !s)}
+                aria-label={showPassphrase ? t('sync.hidePassphrase') : t('sync.showPassphrase')}
                 className="rounded-lg bg-slate-700 px-3 py-2 text-slate-300 hover:bg-slate-600 transition-colors"
               >
                 {showPassphrase ? <EyeOff size={16} /> : <Eye size={16} />}

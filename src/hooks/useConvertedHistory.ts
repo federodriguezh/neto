@@ -24,8 +24,6 @@ export function useConvertedHistory(
         const rate = await getExchangeRateForDate(type, entry.date);
         if (rate !== undefined) {
           result.push({ date: entry.date, value: entry.value / rate });
-        } else {
-          result.push(entry);
         }
       }
 

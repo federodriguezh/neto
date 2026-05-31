@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { Download, Upload, FileSpreadsheet } from 'lucide-react';
 import { db, addTransaction, updateAllRealizedPnl } from '../db';
-import type { Account, AssetClass, TransactionType } from '../types';
+import type { Account, AssetClass, ExchangeRate, HistoricalPrice, Preference, Transaction, TransactionType } from '../types';
 import { useTranslation } from '../i18n';
 import { importCsv } from '../utils/csvImport';
 import { normalizeDate } from '../utils/date';
@@ -15,6 +15,18 @@ const CSV_TEMPLATE = `date,account,symbol,assetClass,type,quantity,price,fees,cu
 2024-04-05,MyBroker,AL30,arg_bonds,buy,500,28.50,2.50,ARS
 2024-05-12,MyBroker,AAPL,arg_cedears,sell,5,190.00,3.00,ARS`;
 
+const SENSITIVE_PREF_KEYS = new Set(['syncPat', 'syncGistId', 'syncEnabled', 'syncLastAt']);
+
+function filterSafePreferences(preferences: Preference[]): Preference[] {
+  return preferences.filter((p) => !SENSITIVE_PREF_KEYS.has(p.key));
+}
+
+function escapeCsvCell(value: unknown): string {
+  const text = String(value ?? '');
+  if (!/[",\n\r]/.test(text)) return text;
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
 export default function ImportExport() {
   const { t } = useTranslation();
 
@@ -23,7 +35,7 @@ export default function ImportExport() {
     const transactions = await db.transactions.toArray();
     const historicalPrices = await db.historicalPrices.toArray();
     const portfolioHistory = await db.portfolioHistory.toArray();
-    const preferences = await db.preferences.toArray();
+    const preferences = filterSafePreferences(await db.preferences.toArray());
     const exchangeRates = await db.exchangeRates.toArray();
 
     const data = { accounts, transactions, historicalPrices, portfolioHistory, preferences, exchangeRates };
@@ -42,7 +54,9 @@ export default function ImportExport() {
 
     const headers = ['id', 'date', 'accountId', 'symbol', 'assetClass', 'type', 'quantity', 'price', 'fees', 'currency'];
     const rows = transactions.map((t) =>
-      [t.id, t.date, t.accountId, t.symbol, t.assetClass, t.type, t.quantity, t.price, t.fees, t.currency].join(',')
+      [t.id, t.date, t.accountId, t.symbol, t.assetClass, t.type, t.quantity, t.price, t.fees, t.currency]
+        .map(escapeCsvCell)
+        .join(',')
     );
     const csv = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -74,8 +88,8 @@ export default function ImportExport() {
 
       const isOldFormat = data.accounts?.length > 0 && typeof data.accounts[0].id === 'number';
 
-      let accounts = data.accounts ?? [];
-      let transactions = data.transactions ?? [];
+      let accounts = (Array.isArray(data.accounts) ? data.accounts : []) as Record<string, unknown>[];
+      let transactions = (Array.isArray(data.transactions) ? data.transactions : []) as Record<string, unknown>[];
 
       if (isOldFormat) {
         const idMap = new Map<unknown, string>();
@@ -149,29 +163,47 @@ export default function ImportExport() {
         return;
       }
 
-      // Clear existing data before import to avoid stale records
-      await db.transactions.clear();
-      await db.accounts.clear();
-      await db.portfolioHistory.clear();
-
+      const normalizedAccounts: Account[] = [];
       if (accounts.length > 0) {
-        accounts = accounts.map((a: Account) => ({
-          ...a,
-          createdAt: normalizeDate(a.createdAt) || a.createdAt,
-          feeType: a.feeType ?? 'fixed',
-          feeValue: a.feeValue ?? 0,
-        }));
-        await db.accounts.bulkPut(accounts);
+        for (const a of accounts as Record<string, unknown>[]) {
+          const id = String(a.id ?? '');
+          const name = String(a.name ?? '');
+          const createdAt = String(a.createdAt ?? new Date().toISOString().split('T')[0]);
+          if (!id || !name) {
+            alert(`${t('import.validationErrors')}\nInvalid account: ${name || id || 'missing id/name'}`);
+            return;
+          }
+          normalizedAccounts.push({
+            id,
+            name,
+            createdAt: normalizeDate(createdAt) || createdAt,
+            updatedAt: String(a.updatedAt ?? new Date().toISOString()),
+            feeType: a.feeType === 'percentage' ? 'percentage' : 'fixed',
+            feeValue: Number(a.feeValue ?? 0),
+          });
+        }
       }
 
-      // Import exchange rates first (needed for currency conversion)
-      if (data.exchangeRates) await db.exchangeRates.bulkPut(data.exchangeRates);
+      const accountIds = new Set(normalizedAccounts.map((a) => a.id));
+      for (let i = 0; i < transactions.length; i++) {
+        if (!accountIds.has(String(transactions[i].accountId))) {
+          alert(`${t('import.validationErrors')}\nTx ${i + 1}: missing account ${String(transactions[i].accountId)}`);
+          return;
+        }
+      }
+
+      const importedExchangeRates = Array.isArray(data.exchangeRates) ? data.exchangeRates as ExchangeRate[] : [];
+      const importedHistoricalPrices = Array.isArray(data.historicalPrices) ? data.historicalPrices as HistoricalPrice[] : [];
+      const importedPreferences = Array.isArray(data.preferences) ? filterSafePreferences(data.preferences as Preference[]) : [];
+
+      // Import exchange rates before conversion, but do not clear user data until everything is ready.
+      if (importedExchangeRates.length > 0) await db.exchangeRates.bulkPut(importedExchangeRates);
       await ensureHistoricalExchangeRates('mep');
       await ensureHistoricalExchangeRates('ccl');
 
       // Convert all transaction prices to ARS
+      const convertedTransactions: Transaction[] = [];
       if (transactions.length > 0) {
-        const converted: typeof transactions = [];
         for (const tx of transactions) {
           const t = tx as Record<string, unknown>;
           const normalized = await convertTransactionToArs(
@@ -180,18 +212,26 @@ export default function ImportExport() {
             Number(t.fees ?? 0),
             (t.currency as string) || 'ARS'
           );
-          converted.push({
+          convertedTransactions.push({
             ...t,
             price: normalized.price,
             fees: normalized.fees,
             currency: normalized.currency,
-          });
+            createdAt: (t.createdAt as string | undefined) ?? (t.date as string),
+            updatedAt: (t.updatedAt as string | undefined) ?? new Date().toISOString(),
+          } as Transaction);
         }
-        await db.transactions.bulkPut(converted);
       }
 
-      if (data.historicalPrices) await db.historicalPrices.bulkPut(data.historicalPrices);
-      if (data.preferences) await db.preferences.bulkPut(data.preferences);
+      await db.transaction('rw', [db.transactions, db.accounts, db.portfolioHistory, db.historicalPrices, db.preferences], async () => {
+        await db.transactions.clear();
+        await db.accounts.clear();
+        await db.portfolioHistory.clear();
+        if (normalizedAccounts.length > 0) await db.accounts.bulkPut(normalizedAccounts);
+        if (convertedTransactions.length > 0) await db.transactions.bulkPut(convertedTransactions);
+        if (importedHistoricalPrices.length > 0) await db.historicalPrices.bulkPut(importedHistoricalPrices);
+        if (importedPreferences.length > 0) await db.preferences.bulkPut(importedPreferences);
+      });
 
       // Batch-compute realized P&L for all sells using FIFO
       await updateAllRealizedPnl();
@@ -213,6 +253,7 @@ export default function ImportExport() {
         for (const tx of result.transactions) {
           await addTransaction(tx);
         }
+        await updateAllRealizedPnl();
       }
       const msg = t('import.csv.success', { count: String(result.count), errors: String(result.errors.length) });
       if (result.errors.length > 0) {

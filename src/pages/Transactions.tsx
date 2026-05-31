@@ -29,6 +29,19 @@ function getRateWithFallback(map: Map<string, number>, targetDate: string, sorte
   return undefined;
 }
 
+function getAvailableQuantity(
+  transactions: Transaction[],
+  candidate: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'>,
+  excludeId?: string
+): number {
+  return transactions.reduce((sum, tx) => {
+    if (tx.id === excludeId) return sum;
+    if (tx.date > candidate.date) return sum;
+    if (tx.accountId !== candidate.accountId || tx.symbol !== candidate.symbol || tx.assetClass !== candidate.assetClass) return sum;
+    return sum + (tx.type === 'buy' ? tx.quantity : -tx.quantity);
+  }, 0);
+}
+
 export default function TransactionsPage() {
   const { t } = useTranslation();
   const { accounts } = useAccounts();
@@ -71,6 +84,10 @@ export default function TransactionsPage() {
   const rateMap = useMemo(() => buildRateMap(exchangeRates), [exchangeRates]);
 
   const handleAdd = async (tx: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'>) => {
+    if (tx.type === 'sell' && tx.quantity > getAvailableQuantity(transactions, tx)) {
+      alert(t('transactions.oversell'));
+      return;
+    }
     await addTransaction(tx);
     await updateAllRealizedPnl();
     await refresh();
@@ -79,6 +96,10 @@ export default function TransactionsPage() {
 
   const handleUpdate = async (tx: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'>) => {
     if (editing?.id !== undefined) {
+      if (tx.type === 'sell' && tx.quantity > getAvailableQuantity(transactions, tx, editing.id)) {
+        alert(t('transactions.oversell'));
+        return;
+      }
       await updateTransaction(editing.id, tx);
       await updateAllRealizedPnl();
       await refresh();
@@ -175,12 +196,14 @@ export default function TransactionsPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => setEditing(tx)}
+                        aria-label={t('transactions.edit')}
                         className="text-slate-400 hover:text-slate-200 transition-colors"
                       >
                         <Pencil size={14} />
                       </button>
                       <button
                         onClick={() => tx.id !== undefined && handleDelete(tx.id)}
+                        aria-label={t('transactions.delete')}
                         className="text-slate-400 hover:text-rose-400 transition-colors"
                       >
                         <Trash2 size={14} />
