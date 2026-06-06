@@ -76,3 +76,67 @@ export interface SyncQueueEntry {
   timestamp: string;
   retryCount: number;
 }
+
+export type IncomeCategory = 'salary' | 'freelance' | 'investment' | 'gift' | 'other';
+
+export interface IncomeEntry {
+  id: string;
+  date: string;
+  source: string;
+  category: IncomeCategory;
+  amount: number;
+  currency: string;
+  participantId?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+}
+
+export interface Household {
+  id: string;
+  name: string;
+  inviteCode: string;
+  splitMethod: 'proportional' | 'fixed';
+  fixedSplit?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Participant {
+  id: string;
+  name: string;
+  householdId: string;
+  userId?: string;
+  incomeRatio: number;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+}
+
+export interface Expense {
+  id: string;
+  date: string;
+  description: string;
+  category: string;
+  totalAmount: number;
+  currency: string;
+  paidBy: string;
+  splitMethod: 'proportional' | 'fixed';
+  fixedSplit?: number;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+}
+
+export interface ExpenseSplit {
+  id: string;
+  expenseId: string;
+  participantId: string;
+  share: number;
+  amount: number;
+  settled: boolean;
+  settledAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}

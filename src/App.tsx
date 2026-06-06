@@ -12,6 +12,10 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
 const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
+const Income = lazy(() => import('./pages/Income'));
+const Households = lazy(() => import('./pages/Households'));
+const Expenses = lazy(() => import('./pages/Expenses'));
+const Balances = lazy(() => import('./pages/Balances'));
 
 function Loading() {
   return (
@@ -52,6 +56,10 @@ function AppContent() {
         <Route element={<Layout showOnboarding={!onboardingDismissed} />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />
+          <Route path="/income" element={<Income />} />
+          <Route path="/households" element={<Households />} />
+          <Route path="/expenses" element={<Expenses />} />
+          <Route path="/balances" element={<Balances />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/onboarding" element={
             onboardingDismissed ? <Navigate to="/" replace /> : <Onboarding />

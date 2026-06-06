@@ -1,7 +1,8 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, List, Settings, BookOpen, Wifi, WifiOff, Cloud } from 'lucide-react';
+import { LayoutDashboard, List, Settings, BookOpen, Wifi, WifiOff, Cloud, DollarSign, Users, Receipt, Scale } from 'lucide-react';
 import { useTranslation } from '../i18n';
 import { useSyncStatus } from '../hooks/useSyncStatus';
+import { useHouseholds } from '../hooks/useHouseholds';
 
 interface LayoutProps {
   showOnboarding: boolean;
@@ -12,12 +13,22 @@ export default function Layout({ showOnboarding }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isOnline, pendingCount } = useSyncStatus();
+  const { household } = useHouseholds();
 
   const navItems = [
     { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
     { to: '/transactions', label: t('nav.transactions'), icon: List },
-    { to: '/settings', label: t('nav.settings'), icon: Settings },
+    { to: '/income', label: t('nav.income'), icon: DollarSign },
   ];
+
+  if (household) {
+    navItems.push({ to: '/expenses', label: t('nav.expenses'), icon: Receipt });
+    navItems.push({ to: '/balances', label: t('nav.balances'), icon: Scale });
+  } else {
+    navItems.push({ to: '/households', label: t('nav.households'), icon: Users });
+  }
+
+  navItems.push({ to: '/settings', label: t('nav.settings'), icon: Settings });
 
   if (showOnboarding && location.pathname !== '/onboarding') {
     navigate('/onboarding', { replace: true });

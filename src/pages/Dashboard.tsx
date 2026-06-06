@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, Wallet, Receipt } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Receipt, DollarSign, PiggyBank } from 'lucide-react';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { useLivePrices } from '../hooks/useLivePrices';
 import { usePortfolioValueHistory } from '../hooks/usePortfolioValueHistory';
@@ -9,6 +9,9 @@ import { useLiveExchangeRate } from '../hooks/useLiveExchangeRate';
 import { useConvertedHistory } from '../hooks/useConvertedHistory';
 import { useSpyComparison } from '../hooks/useSpyComparison';
 import { useRealizedPnlConverted } from '../hooks/useRealizedPnlConverted';
+import { useIncome } from '../hooks/useIncome';
+import { useExpenses } from '../hooks/useExpenses';
+import { useHouseholds } from '../hooks/useHouseholds';
 import { useTranslation } from '../i18n';
 import { convertArsToUsd, formatCurrency } from '../utils/currency';
 import PortfolioChart from '../components/PortfolioChart';
@@ -24,6 +27,9 @@ export default function Dashboard() {
   const { history } = usePortfolioValueHistory();
   const { displayCurrency } = useDisplayCurrency();
   const { convertedPnl: totalRealizedPnl, loading: pnlLoading } = useRealizedPnlConverted(transactions, displayCurrency);
+  const { entries: incomeEntries } = useIncome();
+  const { expenses } = useExpenses();
+  const { household } = useHouseholds();
 
   const [range, setRange] = useState<Range>('30');
   const [comparisonMode, setComparisonMode] = useState(false);
@@ -103,6 +109,32 @@ export default function Dashboard() {
 
   const realizedPnlDisplay = totalRealizedPnl;
 
+  const monthlyIncome = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    return incomeEntries
+      .filter(e => {
+        const d = new Date(e.date);
+        return d.getFullYear() === year && d.getMonth() === month;
+      })
+      .reduce((sum, e) => sum + e.amount, 0);
+  }, [incomeEntries]);
+
+  const monthlyExpenses = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    return expenses
+      .filter(e => {
+        const d = new Date(e.date);
+        return d.getFullYear() === year && d.getMonth() === month;
+      })
+      .reduce((sum, e) => sum + e.totalAmount, 0);
+  }, [expenses]);
+
+  const monthlyBalance = monthlyIncome - monthlyExpenses;
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold text-slate-100">{t('dashboard.title')}</h1>
@@ -148,6 +180,41 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Monthly Income/Expenses Section */}
+      {household && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-xl bg-slate-800 p-4">
+            <div className="mb-2 flex items-center gap-2 text-slate-400">
+              <DollarSign size={16} />
+              <span className="text-xs font-medium uppercase tracking-wider">{t('dashboard.monthlyIncome')}</span>
+            </div>
+            <div className="text-2xl font-bold text-emerald-400">
+              {formatCurrency(monthlyIncome, displayCurrency)}
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-slate-800 p-4">
+            <div className="mb-2 flex items-center gap-2 text-slate-400">
+              <Receipt size={16} />
+              <span className="text-xs font-medium uppercase tracking-wider">{t('dashboard.monthlyExpenses')}</span>
+            </div>
+            <div className="text-2xl font-bold text-rose-400">
+              {formatCurrency(monthlyExpenses, displayCurrency)}
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-slate-800 p-4">
+            <div className="mb-2 flex items-center gap-2 text-slate-400">
+              <PiggyBank size={16} />
+              <span className="text-xs font-medium uppercase tracking-wider">{t('dashboard.monthlyBalance')}</span>
+            </div>
+            <div className={`text-2xl font-bold ${monthlyBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {monthlyBalance >= 0 ? '+' : ''}{formatCurrency(monthlyBalance, displayCurrency)}
+            </div>
+          </div>
+        </div>
+      )}
 
       {(pricesError || rateError) && (
         <div className="rounded-xl bg-rose-900/30 border border-rose-800 p-4 text-sm text-rose-300">
