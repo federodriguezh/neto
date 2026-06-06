@@ -68,6 +68,11 @@ export const en: Record<string, string> = {
 
   // Settings
   'settings.title': 'Settings',
+  'settings.account': 'Account',
+  'settings.online': 'Online',
+  'settings.offline': 'Offline',
+  'settings.pendingChanges': 'pending changes',
+  'settings.logout': 'Logout',
   'settings.accounts': 'Accounts',
   'settings.newAccount': 'New account name',
   'settings.add': 'Add',
@@ -133,6 +138,11 @@ export const en: Record<string, string> = {
   'sync.hidePat': 'Hide GitHub token',
   'sync.showPassphrase': 'Show sync passphrase',
   'sync.hidePassphrase': 'Hide sync passphrase',
+  'sync.supabase.description': 'Your data is automatically synced to the cloud. Changes are saved locally first and synced when you are online.',
+  'sync.supabase.connected': 'Connected',
+  'sync.supabase.offline': 'Offline',
+  'sync.supabase.pendingChanges': 'pending changes',
+  'sync.supabase.autoSync': 'Changes sync automatically every 30 seconds and when you come back online.',
 
   // Import/Export
   'import.invalidFile': 'Invalid import file',
@@ -251,6 +261,11 @@ export const es: Record<string, string> = {
 
   // Settings
   'settings.title': 'Configuración',
+  'settings.account': 'Cuenta',
+  'settings.online': 'En línea',
+  'settings.offline': 'Sin conexión',
+  'settings.pendingChanges': 'cambios pendientes',
+  'settings.logout': 'Cerrar sesión',
   'settings.accounts': 'Cuentas',
   'settings.newAccount': 'Nombre de la nueva cuenta',
   'settings.add': 'Agregar',
@@ -316,6 +331,11 @@ export const es: Record<string, string> = {
   'sync.hidePat': 'Ocultar token de GitHub',
   'sync.showPassphrase': 'Mostrar contraseña de sincro',
   'sync.hidePassphrase': 'Ocultar contraseña de sincro',
+  'sync.supabase.description': 'Tus datos se sincronizan automáticamente a la nube. Los cambios se guardan localmente primero y se sincronizan cuando estás en línea.',
+  'sync.supabase.connected': 'Conectado',
+  'sync.supabase.offline': 'Sin conexión',
+  'sync.supabase.pendingChanges': 'cambios pendientes',
+  'sync.supabase.autoSync': 'Los cambios se sincronizan automáticamente cada 30 segundos y cuando vuelves a estar en línea.',
 
   // Import/Export
   'import.invalidFile': 'Archivo de importación inválido',

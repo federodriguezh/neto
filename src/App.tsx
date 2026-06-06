@@ -1,40 +1,99 @@
-import { useState, useEffect } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { useSupabaseSync } from './hooks/useSupabaseSync';
 import Layout from './components/Layout';
-import Dashboard from './pages/Dashboard';
-import Transactions from './pages/Transactions';
-import Settings from './pages/Settings';
-import Onboarding from './pages/Onboarding';
 import { getPreference } from './db';
 import { runDateRepair } from './utils/repairDates';
 
-type Route = 'dashboard' | 'transactions' | 'settings' | 'onboarding';
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Transactions = lazy(() => import('./pages/Transactions'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Onboarding = lazy(() => import('./pages/Onboarding'));
+const Login = lazy(() => import('./pages/Login'));
+const Signup = lazy(() => import('./pages/Signup'));
 
-export default function App() {
-  const [route, setRoute] = useState<Route>('dashboard');
-  const [showOnboarding, setShowOnboarding] = useState(false);
+function Loading() {
+  return (
+    <div className="flex h-screen items-center justify-center bg-slate-900">
+      <div className="text-sm text-slate-500">Loading...</div>
+    </div>
+  );
+}
+
+function ProtectedRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) return <Loading />;
+  if (!user) return <Navigate to="/login" replace />;
+
+  return <AppContent />;
+}
+
+function AppContent() {
+  const [onboardingDismissed, setOnboardingDismissed] = useState<boolean | null>(null);
+  useSupabaseSync();
 
   useEffect(() => {
     runDateRepair().catch(console.error);
   }, []);
 
   useEffect(() => {
-    async function check() {
-      const pref = await getPreference('onboardingDismissed');
-      const dismissed = pref?.value === true;
-      setShowOnboarding(!dismissed);
-      if (!dismissed) {
-        setRoute('onboarding');
-      }
-    }
-    check();
+    getPreference('onboardingDismissed').then((pref) => {
+      setOnboardingDismissed(pref?.value === true);
+    });
   }, []);
 
+  if (onboardingDismissed === null) return <Loading />;
+
   return (
-    <Layout current={route} onNavigate={setRoute} showOnboarding={showOnboarding}>
-      {route === 'dashboard' && <Dashboard />}
-      {route === 'transactions' && <Transactions />}
-      {route === 'settings' && <Settings />}
-      {route === 'onboarding' && <Onboarding />}
-    </Layout>
+    <Suspense fallback={<Loading />}>
+      <Routes>
+        <Route element={<Layout showOnboarding={!onboardingDismissed} />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/transactions" element={<Transactions />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/onboarding" element={
+            onboardingDismissed ? <Navigate to="/" replace /> : <Onboarding />
+          } />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </Suspense>
+  );
+}
+
+function PublicRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) return <Loading />;
+  if (user) return <Navigate to="/" replace />;
+
+  return (
+    <Suspense fallback={<Loading />}>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Suspense>
+  );
+}
+
+function AppRoutes() {
+  const { user, loading } = useAuth();
+
+  if (loading) return <Loading />;
+
+  return user ? <ProtectedRoute /> : <PublicRoute />;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <HashRouter>
+        <AppRoutes />
+      </HashRouter>
+    </AuthProvider>
   );
 }

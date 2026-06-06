@@ -1,17 +1,21 @@
-import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, AlertTriangle, RotateCcw, Cloud, CloudOff, Eye, EyeOff, RefreshCw, BookOpen, Globe } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Pencil, Trash2, AlertTriangle, RotateCcw, Cloud, BookOpen, Globe, LogOut, User } from 'lucide-react';
 import { useAccounts } from '../hooks/useAccounts';
 import { useDisplayCurrency } from '../hooks/useDisplayCurrency';
-import { useSync } from '../hooks/useSync';
+import { useAuth } from '../contexts/AuthContext';
+import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useTranslation } from '../i18n';
 import { db, clearPriceCache, clearExchangeRates, setPreference } from '../db';
 import ImportExport from '../components/ImportExport';
 
 export default function SettingsPage() {
   const { t, setLanguage } = useTranslation();
+  const navigate = useNavigate();
   const { accounts, create, update, remove } = useAccounts();
   const { displayCurrency, setDisplayCurrency } = useDisplayCurrency();
-  const sync = useSync();
+  const { user, signOut } = useAuth();
+  const { isOnline, pendingCount } = useSyncStatus();
   const [newAccountName, setNewAccountName] = useState('');
   const [newFeeType, setNewFeeType] = useState<'fixed' | 'percentage'>('fixed');
   const [newFeeValue, setNewFeeValue] = useState('0');
@@ -19,18 +23,6 @@ export default function SettingsPage() {
   const [editingName, setEditingName] = useState('');
   const [editingFeeType, setEditingFeeType] = useState<'fixed' | 'percentage'>('fixed');
   const [editingFeeValue, setEditingFeeValue] = useState('0');
-
-  const [patInput, setPatInput] = useState(sync.pat);
-  const [passphraseInput, setPassphraseInput] = useState('');
-  const [confirmPassphraseInput, setConfirmPassphraseInput] = useState('');
-  const [showPat, setShowPat] = useState(false);
-  const [showPassphrase, setShowPassphrase] = useState(false);
-
-  useEffect(() => {
-    if (sync.pat && !patInput) {
-      setPatInput(sync.pat);
-    }
-  }, [sync.pat, patInput]);
 
   const handleCreate = async () => {
     if (!newAccountName.trim()) return;
@@ -67,12 +59,41 @@ export default function SettingsPage() {
 
   const handleShowOnboarding = async () => {
     await setPreference('onboardingDismissed', false);
-    window.location.reload();
+    navigate('/onboarding');
   };
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold text-slate-100">{t('settings.title')}</h1>
+
+      {/* Account */}
+      <div className="rounded-xl bg-slate-800 p-4">
+        <h2 className="mb-3 text-sm font-medium text-slate-200">{t('settings.account')}</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700">
+              <User size={20} className="text-slate-300" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-100">{user?.email}</p>
+              <p className="text-xs text-slate-400">
+                {isOnline ? t('settings.online') : t('settings.offline')}
+                {pendingCount > 0 && ` · ${pendingCount} ${t('settings.pendingChanges')}`}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={async () => {
+              await signOut();
+              navigate('/login', { replace: true });
+            }}
+            className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
+          >
+            <LogOut size={16} />
+            {t('settings.logout')}
+          </button>
+        </div>
+      </div>
 
       {/* Accounts */}
       <div className="rounded-xl bg-slate-800 p-4">
@@ -253,165 +274,29 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Sync */}
+      {/* Cloud Sync */}
       <div className="rounded-xl bg-slate-800 p-4">
         <h2 className="mb-3 text-sm font-medium text-slate-200">{t('sync.title')}</h2>
         <div className="flex flex-col gap-3">
-          <p className="text-xs text-slate-400">{t('sync.description')}</p>
+          <p className="text-xs text-slate-400">{t('sync.supabase.description')}</p>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={async () => {
-                if (sync.enabled) {
-                  await sync.setEnabled(false);
-                } else {
-                  await sync.setEnabled(true);
-                }
-              }}
-              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                sync.enabled
-                  ? 'bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/50'
-                  : 'bg-slate-700 text-slate-200 hover:bg-slate-600'
-              }`}
-            >
-              {sync.enabled ? <Cloud size={16} /> : <CloudOff size={16} />}
-              {sync.enabled ? t('sync.enabled') : t('sync.disabled')}
-            </button>
-            {sync.lastSyncAt && (
-              <span className="text-xs text-slate-500">
-                {t('sync.lastSynced', { time: new Date(sync.lastSyncAt).toLocaleString() })}
+            <div className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${
+              isOnline
+                ? 'bg-emerald-900/30 text-emerald-400'
+                : 'bg-rose-900/30 text-rose-400'
+            }`}>
+              <Cloud size={16} />
+              {isOnline ? t('sync.supabase.connected') : t('sync.supabase.offline')}
+            </div>
+            {pendingCount > 0 && (
+              <span className="text-xs text-amber-400">
+                {pendingCount} {t('sync.supabase.pendingChanges')}
               </span>
             )}
           </div>
 
-          {sync.status === 'error' && sync.error && (
-            <div className="rounded-lg bg-rose-900/30 border border-rose-800 px-3 py-2 text-xs text-rose-300">
-              {sync.error}
-            </div>
-          )}
-
-          {sync.status === 'syncing' && (
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <RefreshCw size={14} className="animate-spin" />
-              {t('sync.syncing')}
-            </div>
-          )}
-
-          {sync.status === 'success' && (
-            <div className="text-xs text-emerald-400">{t('sync.success')}</div>
-          )}
-
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-slate-400">{t('sync.pat')}</label>
-            <div className="flex gap-2">
-              <input
-                type={showPat ? 'text' : 'password'}
-                className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
-                placeholder={t('sync.patPlaceholder')}
-                value={patInput}
-                onChange={(e) => setPatInput(e.target.value)}
-              />
-              <button
-                onClick={() => setShowPat((s) => !s)}
-                aria-label={showPat ? t('sync.hidePat') : t('sync.showPat')}
-                className="rounded-lg bg-slate-700 px-3 py-2 text-slate-300 hover:bg-slate-600 transition-colors"
-              >
-                {showPat ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-            <p className="text-xs text-slate-500">{t('sync.patScope', { scope: 'gist' })}</p>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-slate-400">{t('sync.passphrase')}</label>
-            <div className="flex gap-2">
-              <input
-                type={showPassphrase ? 'text' : 'password'}
-                className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
-                placeholder={t('sync.passphrasePlaceholder')}
-                value={passphraseInput}
-                onChange={(e) => setPassphraseInput(e.target.value)}
-              />
-              <button
-                onClick={() => setShowPassphrase((s) => !s)}
-                aria-label={showPassphrase ? t('sync.hidePassphrase') : t('sync.showPassphrase')}
-                className="rounded-lg bg-slate-700 px-3 py-2 text-slate-300 hover:bg-slate-600 transition-colors"
-              >
-                {showPassphrase ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-
-          {!sync.passphrase && (
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-medium text-slate-400">{t('sync.confirmPassphrase')}</label>
-              <input
-                type={showPassphrase ? 'text' : 'password'}
-                className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
-                placeholder={t('sync.confirmPlaceholder')}
-                value={confirmPassphraseInput}
-                onChange={(e) => setConfirmPassphraseInput(e.target.value)}
-              />
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-2">
-            {!sync.enabled ? (
-              <button
-                onClick={async () => {
-                  if (!patInput.trim()) {
-                    alert(t('sync.error.patRequired'));
-                    return;
-                  }
-                  if (passphraseInput.length < 8) {
-                    alert(t('sync.error.passphraseLength'));
-                    return;
-                  }
-                  if (!sync.passphrase && passphraseInput !== confirmPassphraseInput) {
-                    alert(t('sync.error.passphraseMatch'));
-                    return;
-                  }
-                  await sync.setPat(patInput.trim());
-                  await sync.setPassphrase(passphraseInput);
-                  await sync.setEnabled(true);
-                  await sync.syncNow();
-                }}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
-              >
-                <Cloud size={16} />
-                {t('sync.enable')}
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={async () => {
-                    await sync.setPat(patInput.trim());
-                    await sync.setPassphrase(passphraseInput || sync.passphrase);
-                    await sync.syncNow();
-                  }}
-                  disabled={sync.status === 'syncing'}
-                  className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors disabled:opacity-50"
-                >
-                  <RefreshCw size={16} />
-                  {t('sync.syncNow')}
-                </button>
-                <button
-                  onClick={async () => {
-                    if (confirm(t('sync.unlinkConfirm'))) {
-                      await sync.unlink();
-                      setPatInput('');
-                      setPassphraseInput('');
-                      setConfirmPassphraseInput('');
-                    }
-                  }}
-                  className="inline-flex items-center gap-2 rounded-lg bg-rose-900/30 px-3 py-2 text-sm font-medium text-rose-400 hover:bg-rose-900/50 transition-colors"
-                >
-                  <CloudOff size={16} />
-                  {t('sync.unlink')}
-                </button>
-              </>
-            )}
-          </div>
+          <p className="text-xs text-slate-500">{t('sync.supabase.autoSync')}</p>
         </div>
       </div>
 

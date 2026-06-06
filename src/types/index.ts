@@ -67,3 +67,12 @@ export interface Holding {
   marketValue: number;
   unrealizedPnl: number;
 }
+
+export interface SyncQueueEntry {
+  id: string;
+  tableName: string;
+  operation: 'INSERT' | 'UPDATE' | 'DELETE';
+  data: Record<string, unknown>;
+  timestamp: string;
+  retryCount: number;
+}

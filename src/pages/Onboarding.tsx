@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Download, Cloud, Smartphone, ArrowRight, FileSpreadsheet, BookOpen } from 'lucide-react';
 import { useTranslation } from '../i18n';
 import { setPreference } from '../db';
@@ -9,11 +10,12 @@ const CSV_TEMPLATE = `date,account,symbol,assetClass,type,quantity,price,fees,cu
 
 export default function OnboardingPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const handleDismiss = useCallback(async () => {
     await setPreference('onboardingDismissed', true);
-    window.location.reload();
-  }, []);
+    navigate('/', { replace: true });
+  }, [navigate]);
 
   const handleDownloadTemplate = useCallback(() => {
     const blob = new Blob([CSV_TEMPLATE], { type: 'text/csv' });

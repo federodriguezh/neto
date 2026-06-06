@@ -6,6 +6,7 @@ import type {
   PriceCacheEntry,
   Preference,
   ExchangeRate,
+  SyncQueueEntry,
 } from '../types';
 
 export type {
@@ -16,4 +17,5 @@ export type {
   PriceCacheEntry,
   Preference,
   ExchangeRate,
+  SyncQueueEntry,
 };

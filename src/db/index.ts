@@ -7,6 +7,7 @@ import type {
   PriceCacheEntry,
   Preference,
   ExchangeRate,
+  SyncQueueEntry,
 } from './schema';
 import { normalizeDate } from '../utils/date';
 
@@ -20,6 +21,7 @@ interface NetoDatabase extends Dexie {
   priceCache: Table<PriceCacheEntry, string>;
   preferences: Table<Preference, string>;
   exchangeRates: Table<ExchangeRate, [string, string]>;
+  syncQueue: Table<SyncQueueEntry, string>;
 }
 
 const db = new Dexie(DB_NAME) as NetoDatabase;
@@ -104,6 +106,17 @@ db.version(4).stores({
   await tx.table('accounts').bulkPut(newAccounts);
   await tx.table('transactions').clear();
   await tx.table('transactions').bulkPut(newTransactions);
+});
+
+db.version(5).stores({
+  accounts: 'id, name, createdAt',
+  transactions: 'id, date, accountId, symbol, assetClass, type',
+  historicalPrices: '[symbol+date], symbol, date, close',
+  portfolioHistory: 'date, value',
+  priceCache: 'symbol, price, timestamp',
+  preferences: 'key',
+  exchangeRates: '[type+date], type, date',
+  syncQueue: 'id, tableName, timestamp',
 });
 
 export { db };
@@ -249,4 +262,22 @@ export async function updateAllRealizedPnl(): Promise<void> {
   if (diagnostics.length > 0) {
     console.warn('[updateAllRealizedPnl] Orphan/oversell detected:', diagnostics);
   }
+}
+
+export async function addToSyncQueue(entry: Omit<SyncQueueEntry, 'id'>): Promise<string> {
+  const id = crypto.randomUUID();
+  await db.syncQueue.add({ ...entry, id });
+  return id;
+}
+
+export async function getSyncQueue(): Promise<SyncQueueEntry[]> {
+  return db.syncQueue.orderBy('timestamp').toArray();
+}
+
+export async function removeFromSyncQueue(id: string): Promise<void> {
+  await db.syncQueue.delete(id);
+}
+
+export async function clearSyncQueue(): Promise<void> {
+  await db.syncQueue.clear();
 }
