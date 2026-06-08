@@ -105,10 +105,8 @@ async function processQueueEntry(entry: SyncQueueEntry): Promise<void> {
       if (tableName === 'preferences') {
         const { key, value } = dataWithUser as Record<string, unknown>;
         const { error } = await supabase.from(tableName).insert({ user_id: user.id, key, value });
-        if (error && error.code === '23505') {
+        if (error) {
           await supabase.from(tableName).update({ value }).eq('user_id', user.id).eq('key', key as string);
-        } else if (error) {
-          throw error;
         }
       } else {
         await supabase.from(tableName).insert(dataWithUser);
@@ -153,7 +151,7 @@ export async function initialSync(): Promise<void> {
     if (!user) return;
 
     if (localAccounts.length > 0) {
-      await supabase.from('accounts').insert(
+      const { error } = await supabase.from('accounts').insert(
         localAccounts.map((a) => ({
           user_id: user.id, id: a.id, name: a.name,
           fee_type: a.feeType, fee_value: a.feeValue,
@@ -161,11 +159,16 @@ export async function initialSync(): Promise<void> {
           deleted_at: a.deletedAt ?? null,
         }))
       );
+      if (error) {
+        console.error(`[sync] initialSync accounts upload failed: ${JSON.stringify({
+          message: error.message, details: error.details, hint: error.hint, code: error.code,
+        })}`);
+      }
     }
     if (localTxns.length > 0) {
       const chunkSize = 100;
       for (let i = 0; i < localTxns.length; i += chunkSize) {
-        await supabase.from('transactions').insert(
+        const { error } = await supabase.from('transactions').insert(
           localTxns.slice(i, i + chunkSize).map((t) => ({
             user_id: user.id, id: t.id, account_id: t.accountId, date: t.date,
             symbol: t.symbol, asset_class: t.assetClass, type: t.type,
@@ -175,6 +178,11 @@ export async function initialSync(): Promise<void> {
             deleted_at: t.deletedAt ?? null,
           }))
         );
+        if (error) {
+          console.error(`[sync] initialSync transactions upload failed (chunk ${i}): ${JSON.stringify({
+            message: error.message, details: error.details, hint: error.hint, code: error.code,
+          })}`);
+        }
       }
     }
     if (localPrefs.length > 0) {
