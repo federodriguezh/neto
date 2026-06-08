@@ -66,13 +66,13 @@ export async function flushQueue(): Promise<{ success: number; failed: number }>
         success++;
       } catch (err) {
         const e = err as Record<string, unknown>;
-        console.error(`[sync] Failed ${entry.tableName} ${entry.operation}:`, {
+        console.error(`[sync] Failed ${entry.tableName} ${entry.operation}: ${JSON.stringify({
           id: entry.data?.id,
           message: e?.message,
           details: e?.details,
           hint: e?.hint,
           code: e?.code,
-        });
+        })}`);
         failed++;
       }
     }
@@ -178,9 +178,12 @@ export async function initialSync(): Promise<void> {
       }
     }
     if (localPrefs.length > 0) {
-      await supabase.from('preferences').insert(
-        localPrefs.map((p) => ({ user_id: user.id, key: p.key, value: p.value }))
-      );
+      for (const p of localPrefs) {
+        const { error } = await supabase.from('preferences').insert({ user_id: user.id, key: p.key, value: p.value });
+        if (error && error.code === '23505') {
+          await supabase.from('preferences').update({ value: p.value }).eq('user_id', user.id).eq('key', p.key);
+        }
+      }
     }
 
     await clearSyncQueue();
