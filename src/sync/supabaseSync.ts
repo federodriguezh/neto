@@ -166,15 +166,20 @@ export async function initialSync(): Promise<void> {
       }
     }
     if (localTxns.length > 0) {
+      const isValidUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+      const validTxns = localTxns.filter((t) => isValidUuid(t.accountId));
+      if (validTxns.length < localTxns.length) {
+        console.warn(`[sync] Filtered ${localTxns.length - validTxns.length} transaction(s) with invalid accountId`);
+      }
       const chunkSize = 100;
-      for (let i = 0; i < localTxns.length; i += chunkSize) {
+      for (let i = 0; i < validTxns.length; i += chunkSize) {
         const { error } = await supabase.from('transactions').insert(
-          localTxns.slice(i, i + chunkSize).map((t) => ({
+          validTxns.slice(i, i + chunkSize).map((t) => ({
             user_id: user.id, id: t.id, account_id: t.accountId, date: t.date,
             symbol: t.symbol, asset_class: t.assetClass, type: t.type,
             quantity: t.quantity, price: t.price, fees: t.fees,
             currency: t.currency, realized_pnl: t.realizedPnl ?? null,
-            created_at: t.createdAt, updated_at: t.updatedAt,
+            created_at: t.createdAt, updatedAt: t.updatedAt,
             deleted_at: t.deletedAt ?? null,
           }))
         );
