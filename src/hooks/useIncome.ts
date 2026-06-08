@@ -58,9 +58,6 @@ export function useIncome() {
     const full = await addLocalIncomeEntry(entry);
     setEntries((prev) => [full, ...prev]);
     if (user) enqueueIncomeChange('INSERT', full).catch(() => {});
-    try {
-      await supabase.from('income_entries').insert({ ...entry, user_id: user?.id });
-    } catch { /* synced later via queue */ }
   };
 
   const updateEntry = async (id: string, updates: Partial<IncomeEntry>) => {
@@ -68,9 +65,6 @@ export function useIncome() {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
     const current = entries.find((e) => e.id === id);
     if (current) enqueueIncomeChange('UPDATE', { ...current, ...updates }).catch(() => {});
-    try {
-      await supabase.from('income_entries').update(updates).eq('id', id);
-    } catch { /* synced later */ }
   };
 
   const deleteEntry = async (id: string) => {
@@ -78,9 +72,6 @@ export function useIncome() {
     setEntries((prev) => prev.filter((e) => e.id !== id));
     const current = entries.find((e) => e.id === id);
     if (current) enqueueIncomeChange('DELETE', current).catch(() => {});
-    try {
-      await supabase.from('income_entries').update({ deleted_at: new Date().toISOString() }).eq('id', id);
-    } catch { /* synced later */ }
   };
 
   const getMonthlyTotal = (year: number, month: number) => {

@@ -134,21 +134,6 @@ export function useHouseholds() {
     await setPreference('activeHouseholdId', hh.id);
     enqueueHouseholdChange('INSERT', hh).catch(() => {});
     enqueueParticipantChange('INSERT', part).catch(() => {});
-
-    try {
-      const { data: supabaseHh } = await supabase.from('households')
-        .insert({ name, invite_code: inviteCode }).select().single();
-      if (supabaseHh) {
-        await updateLocalHousehold(hh.id, { id: supabaseHh.id });
-        setHouseholds((prev) => prev.map((h) => h.id === hh.id ? { ...h, id: supabaseHh.id } : h));
-        setActiveHouseholdId(supabaseHh.id);
-        await setPreference('activeHouseholdId', supabaseHh.id);
-      }
-      await supabase.from('participants').insert({
-        user_id: user.id, name: participantName,
-        household_id: supabaseHh?.id ?? hh.id, income_ratio: 0.5,
-      });
-    } catch { /* synced later */ }
   };
 
   const joinHousehold = async (inviteCode: string, participantName: string) => {
@@ -162,10 +147,6 @@ export function useHouseholds() {
       .eq('household_id', hhData.id).eq('user_id', user.id).is('deleted_at', null).single();
     if (existing) throw new Error('Already a member');
 
-    await supabase.from('participants').insert({
-      household_id: hhData.id, user_id: user.id, name: participantName, income_ratio: 0.5,
-    });
-
     const mappedHh: Household = {
       ...hhData,
       inviteCode: hhData.invite_code,
@@ -176,6 +157,7 @@ export function useHouseholds() {
     };
     await addLocalHousehold(mappedHh);
     const part = await addLocalParticipant({ name: participantName, householdId: hhData.id, userId: user.id, incomeRatio: 0.5 });
+    enqueueParticipantChange('INSERT', part).catch(() => {});
     setHouseholds((prev) => [...prev.filter((h) => h.id !== hhData.id), mappedHh]);
     setActiveHouseholdId(hhData.id);
     setParticipants([part]);
@@ -187,7 +169,6 @@ export function useHouseholds() {
     await updateLocalHousehold(activeHousehold.id, updates);
     setHouseholds((prev) => prev.map((h) => h.id === activeHousehold.id ? { ...h, ...updates } : h));
     enqueueHouseholdChange('UPDATE', { ...activeHousehold, ...updates }).catch(() => {});
-    try { await supabase.from('households').update(updates).eq('id', activeHousehold.id); } catch {}
   };
 
   const addParticipant = async (name: string) => {
@@ -195,11 +176,6 @@ export function useHouseholds() {
     const part = await addLocalParticipant({ name, householdId: activeHousehold.id, incomeRatio: 0, userId: user?.id });
     setParticipants((prev) => [...prev, part]);
     enqueueParticipantChange('INSERT', part).catch(() => {});
-    try {
-      await supabase.from('participants').insert({
-        household_id: activeHousehold.id, name, income_ratio: 0, user_id: user?.id ?? null,
-      });
-    } catch {}
   };
 
   const updateParticipant = async (id: string, updates: Partial<Participant>) => {
@@ -207,7 +183,6 @@ export function useHouseholds() {
     setParticipants((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
     const current = participants.find((p) => p.id === id);
     if (current) enqueueParticipantChange('UPDATE', { ...current, ...updates }).catch(() => {});
-    try { await supabase.from('participants').update(updates).eq('id', id); } catch {}
   };
 
   const removeParticipant = async (id: string) => {
@@ -215,7 +190,6 @@ export function useHouseholds() {
     setParticipants((prev) => prev.filter((p) => p.id !== id));
     const current = participants.find((p) => p.id === id);
     if (current) enqueueParticipantChange('DELETE', current).catch(() => {});
-    try { await supabase.from('participants').update({ deleted_at: new Date().toISOString() }).eq('id', id); } catch {}
   };
 
   const recalculateIncomeRatios = async () => {
@@ -237,7 +211,7 @@ export function useHouseholds() {
         const ratio = total > 0 ? incomes[p.id] / total : 1 / allParts.length;
         await updateLocalParticipant(p.id, { incomeRatio: ratio });
         setParticipants((prev) => prev.map((pr) => (pr.id === p.id ? { ...pr, incomeRatio: ratio } : pr)));
-        try { await supabase.from('participants').update({ income_ratio: ratio }).eq('id', p.id); } catch {}
+        enqueueParticipantChange('UPDATE', { ...participants.find((pr) => pr.id === p.id)!, incomeRatio: ratio }).catch(() => {});
       }
     } catch {}
   };

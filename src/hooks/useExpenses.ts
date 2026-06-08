@@ -107,18 +107,6 @@ export function useExpenses() {
       const split = await addLocalExpenseSplit({ ...s, expenseId: fullExpense.id });
       enqueueExpenseSplitChange('INSERT', split).catch(() => {});
     }
-
-    try {
-      const supabaseExpense: Record<string, unknown> = { ...expense, created_by: user.id };
-      if (household) supabaseExpense.household_id = household.id;
-      const { data: supabaseExp } = await supabase.from('expenses')
-        .insert(supabaseExpense).select().single();
-      if (supabaseExp) {
-        const splitsToCreate = calculateSplits(expense.totalAmount, expense.splitMethod, expense.fixedSplit)
-          .map((s) => ({ ...s, expense_id: supabaseExp.id }));
-        if (splitsToCreate.length > 0) await supabase.from('expense_splits').insert(splitsToCreate);
-      }
-    } catch {}
   };
 
   const updateExpense = async (id: string, updates: Partial<Expense>) => {
@@ -126,22 +114,6 @@ export function useExpenses() {
     setExpenses((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
     const current = expenses.find((e) => e.id === id);
     if (current) enqueueExpenseChange('UPDATE', { ...current, ...updates }).catch(() => {});
-
-    try {
-      await supabase.from('expenses').update(updates).eq('id', id);
-      if (updates.totalAmount !== undefined || updates.splitMethod !== undefined || updates.fixedSplit !== undefined) {
-        await supabase.from('expense_splits').delete().eq('expense_id', id);
-        const expense = expenses.find((e) => e.id === id);
-        if (expense) {
-          const splitsToCreate = calculateSplits(
-            updates.totalAmount ?? expense.totalAmount,
-            updates.splitMethod ?? expense.splitMethod,
-            updates.fixedSplit ?? expense.fixedSplit,
-          ).map((s) => ({ ...s, expense_id: id }));
-          if (splitsToCreate.length > 0) await supabase.from('expense_splits').insert(splitsToCreate);
-        }
-      }
-    } catch {}
   };
 
   const deleteExpense = async (id: string) => {
@@ -149,20 +121,13 @@ export function useExpenses() {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
     const current = expenses.find((e) => e.id === id);
     if (current) enqueueExpenseChange('DELETE', current).catch(() => {});
-
-    try {
-      await supabase.from('expenses').update({ deleted_at: new Date().toISOString() }).eq('id', id);
-    } catch {}
   };
 
   const settleSplit = async (splitId: string) => {
     await updateLocalExpenseSplit(splitId, { settled: true, settledAt: new Date().toISOString() });
     setSplits((prev) => prev.map((s) => (s.id === splitId ? { ...s, settled: true, settledAt: new Date().toISOString() } : s)));
-    enqueueExpenseSplitChange('UPDATE', { ...splits.find((s) => s.id === splitId)!, settled: true, settledAt: new Date().toISOString() }).catch(() => {});
-
-    try {
-      await supabase.from('expense_splits').update({ settled: true, settled_at: new Date().toISOString() }).eq('id', splitId);
-    } catch {}
+    const current = splits.find((s) => s.id === splitId);
+    if (current) enqueueExpenseSplitChange('UPDATE', { ...current, settled: true, settledAt: new Date().toISOString() }).catch(() => {});
   };
 
   const getMonthlyTotal = (year: number, month: number) => {
