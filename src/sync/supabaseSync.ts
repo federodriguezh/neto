@@ -277,7 +277,7 @@ async function checkRemoteHasExtendedData(userId: string): Promise<boolean> {
   if ((incomeCheck ?? []).length > 0) return true;
 
   const { data: partCheck } = await supabase
-    .from('participants').select('id').eq('user_id', userId).limit(1);
+    .rpc('get_participants_by_user', { p_user_id: userId });
   if ((partCheck ?? []).length > 0) return true;
 
   return false;
@@ -361,12 +361,13 @@ async function pullIncomeFromSupabase(userId: string): Promise<void> {
 }
 
 async function pullHouseholdAndExpenses(userId: string): Promise<void> {
-  const { data: partData } = await supabase.from('participants')
-    .select('*').eq('user_id', userId).single();
-  if (!partData) return;
+  const { data: partData } = await supabase
+    .rpc('get_participants_by_user', { p_user_id: userId });
+  const participant = partData?.[0];
+  if (!participant) return;
 
   const { data: hhData } = await supabase.from('households')
-    .select('*').eq('id', partData.household_id).single();
+    .select('*').eq('id', participant.household_id).single();
   if (hhData) {
     await db.households.put({
       id: hhData.id, name: hhData.name, inviteCode: hhData.invite_code,
@@ -375,8 +376,8 @@ async function pullHouseholdAndExpenses(userId: string): Promise<void> {
     });
   }
 
-  const { data: allParts } = await supabase.from('participants')
-    .select('*').eq('household_id', partData.household_id);
+  const { data: allParts } = await supabase
+    .rpc('get_participants_by_household', { p_household_id: participant.household_id });
   if (allParts) {
     for (const p of allParts) {
       await db.participants.put({

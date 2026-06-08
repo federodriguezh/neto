@@ -145,9 +145,8 @@ export function useHouseholds() {
     if (hhError || !hhData) throw new Error('Invalid invite code');
 
     const { data: existing } = await supabase
-      .from('participants').select('id, deleted_at')
-      .eq('household_id', hhData.id).eq('user_id', user.id).single();
-    if (existing && !existing.deleted_at) throw new Error('Already a member');
+      .rpc('find_existing_participant', { p_user_id: user.id, p_household_id: hhData.id });
+    if (existing?.[0] && !existing[0].deleted_at) throw new Error('Already a member');
 
     const mappedHh: Household = {
       ...hhData,
@@ -197,8 +196,8 @@ export function useHouseholds() {
   const recalculateIncomeRatios = async () => {
     if (!activeHousehold || !user) return;
     try {
-      const { data: allParts } = await supabase.from('participants')
-        .select('id').eq('household_id', activeHousehold.id);
+      const { data: allParts } = await supabase
+        .rpc('get_participant_ids_by_household', { p_household_id: activeHousehold.id });
       if (!allParts?.length) return;
       const incomes: Record<string, number> = {};
       let total = 0;
