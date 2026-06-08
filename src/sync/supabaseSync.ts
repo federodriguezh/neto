@@ -100,8 +100,8 @@ export async function initialSync(): Promise<void> {
   await clearSyncQueue();
   
   const [accountsRes, transactionsRes, preferencesRes] = await Promise.all([
-    supabase.from('accounts').select('*').eq('deleted_at', null),
-    supabase.from('transactions').select('*').eq('deleted_at', null),
+    supabase.from('accounts').select('*').is('deleted_at', null),
+    supabase.from('transactions').select('*').is('deleted_at', null),
     supabase.from('preferences').select('*'),
   ]);
 
