@@ -47,7 +47,10 @@ jobs:
         run: docker run --rm -v $(pwd):/app neto-dev npm install
 
       - name: Build production bundle
-        run: docker run --rm -v $(pwd):/app neto-dev npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: docker run --rm -v $(pwd):/app -e VITE_SUPABASE_URL -e VITE_SUPABASE_ANON_KEY neto-dev npm run build
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
