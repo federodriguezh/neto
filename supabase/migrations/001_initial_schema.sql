@@ -450,3 +450,20 @@ CREATE TRIGGER update_households_updated_at
 CREATE TRIGGER update_preferences_updated_at
   BEFORE UPDATE ON preferences
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- 7. GRANTS (required for RLS to work with raw SQL execution)
+-- ============================================
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON accounts TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON transactions TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON income_entries TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON expenses TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON expense_splits TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON households TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON participants TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON preferences TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON portfolio_history TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON sync_queue TO authenticated;
+GRANT SELECT ON exchange_rates TO authenticated;
+GRANT SELECT ON historical_prices TO authenticated;
