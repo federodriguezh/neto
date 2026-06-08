@@ -65,9 +65,14 @@ export async function flushQueue(): Promise<{ success: number; failed: number }>
         await removeFromSyncQueue(entry.id);
         success++;
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        const body = (err as Record<string, unknown>)?.details ?? (err as Record<string, unknown>)?.code ?? '';
-        console.error(`[sync] Failed ${entry.tableName} ${entry.operation} ${entry.data?.id}: ${msg}`, body);
+        const e = err as Record<string, unknown>;
+        console.error(`[sync] Failed ${entry.tableName} ${entry.operation}:`, {
+          id: entry.data?.id,
+          message: e?.message,
+          details: e?.details,
+          hint: e?.hint,
+          code: e?.code,
+        });
         failed++;
       }
     }
@@ -99,7 +104,12 @@ async function processQueueEntry(entry: SyncQueueEntry): Promise<void> {
     case 'INSERT':
       if (tableName === 'preferences') {
         const { key, value } = dataWithUser as Record<string, unknown>;
-        await supabase.from(tableName).upsert({ user_id: user.id, key, value }, { onConflict: 'user_id,key' });
+        const { error } = await supabase.from(tableName).insert({ user_id: user.id, key, value });
+        if (error && error.code === '23505') {
+          await supabase.from(tableName).update({ value }).eq('user_id', user.id).eq('key', key as string);
+        } else if (error) {
+          throw error;
+        }
       } else {
         await supabase.from(tableName).insert(dataWithUser);
       }
