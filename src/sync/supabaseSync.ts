@@ -27,13 +27,18 @@ async function processQueueEntry(entry: SyncQueueEntry): Promise<void> {
   const { tableName, operation, data } = entry;
   const recordId = data.id as string;
 
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No authenticated user');
+
+  const dataWithUser = { ...data, user_id: user.id };
+
   switch (operation) {
     case 'INSERT':
-      await supabase.from(tableName).insert(data);
+      await supabase.from(tableName).insert(dataWithUser);
       break;
 
     case 'UPDATE':
-      await supabase.from(tableName).update(data).eq('id', recordId);
+      await supabase.from(tableName).update(dataWithUser).eq('id', recordId);
       break;
 
     case 'DELETE':
@@ -52,6 +57,51 @@ export async function initialSync(): Promise<void> {
   if (accountsRes.error) throw accountsRes.error;
   if (transactionsRes.error) throw transactionsRes.error;
   if (preferencesRes.error) throw preferencesRes.error;
+
+  const remoteHasData = accountsRes.data.length > 0 || transactionsRes.data.length > 0;
+
+  if (!remoteHasData) {
+    const localAccounts = await db.accounts.filter((a) => a.deletedAt === undefined).toArray();
+    const localTxns = await db.transactions.filter((t) => t.deletedAt === undefined).toArray();
+    const localPrefs = await db.preferences.toArray();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    if (localAccounts.length > 0) {
+      await supabase.from('accounts').insert(
+        localAccounts.map((a) => ({
+          user_id: user.id, id: a.id, name: a.name,
+          fee_type: a.feeType, fee_value: a.feeValue,
+          created_at: a.createdAt, updated_at: a.updatedAt,
+          deleted_at: a.deletedAt ?? null,
+        }))
+      );
+    }
+    if (localTxns.length > 0) {
+      const chunkSize = 100;
+      for (let i = 0; i < localTxns.length; i += chunkSize) {
+        await supabase.from('transactions').insert(
+          localTxns.slice(i, i + chunkSize).map((t) => ({
+            user_id: user.id, id: t.id, account_id: t.accountId, date: t.date,
+            symbol: t.symbol, asset_class: t.assetClass, type: t.type,
+            quantity: t.quantity, price: t.price, fees: t.fees,
+            currency: t.currency, realized_pnl: t.realizedPnl ?? null,
+            created_at: t.createdAt, updated_at: t.updatedAt,
+            deleted_at: t.deletedAt ?? null,
+          }))
+        );
+      }
+    }
+    if (localPrefs.length > 0) {
+      await supabase.from('preferences').insert(
+        localPrefs.map((p) => ({ user_id: user.id, key: p.key, value: p.value }))
+      );
+    }
+
+    await clearSyncQueue();
+    return;
+  }
 
   await db.transaction('rw', [db.accounts, db.transactions, db.preferences], async () => {
     await db.accounts.clear();

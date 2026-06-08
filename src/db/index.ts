@@ -10,6 +10,7 @@ import type {
   SyncQueueEntry,
 } from './schema';
 import { normalizeDate } from '../utils/date';
+import { enqueueAccountChange, enqueueTransactionChange, enqueuePreferenceChange } from '../sync/offlineQueue';
 
 const DB_NAME = 'neto-db';
 
@@ -129,7 +130,9 @@ export async function addAccount(account: Omit<Account, 'id' | 'updatedAt'>): Pr
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const createdAt = normalizeDate(account.createdAt) || account.createdAt;
-  await db.accounts.add({ ...account, id, updatedAt: now, createdAt });
+  const full: Account = { ...account, id, updatedAt: now, createdAt };
+  await db.accounts.add(full);
+  enqueueAccountChange('INSERT', full).catch((e) => console.warn('[sync] Failed to enqueue account add:', e));
   return id;
 }
 
@@ -139,11 +142,15 @@ export async function updateAccount(id: string, changes: Partial<Account>): Prom
     payload.createdAt = normalizeDate(changes.createdAt) || changes.createdAt;
   }
   await db.accounts.update(id, payload);
+  const updated = await db.accounts.get(id);
+  if (updated) enqueueAccountChange('UPDATE', updated).catch((e) => console.warn('[sync] Failed to enqueue account update:', e));
 }
 
 export async function deleteAccount(id: string): Promise<void> {
   const now = new Date().toISOString();
   await db.accounts.update(id, { deletedAt: now, updatedAt: now });
+  const deleted = await db.accounts.get(id);
+  if (deleted) enqueueAccountChange('DELETE', deleted).catch((e) => console.warn('[sync] Failed to enqueue account delete:', e));
 }
 
 export async function getTransactions(): Promise<Transaction[]> {
@@ -158,7 +165,9 @@ export async function addTransaction(transaction: Omit<Transaction, 'id' | 'upda
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const date = normalizeDate(transaction.date) || transaction.date;
-  await db.transactions.add({ ...transaction, id, updatedAt: now, createdAt: now, date });
+  const full: Transaction = { ...transaction, id, updatedAt: now, createdAt: now, date };
+  await db.transactions.add(full);
+  enqueueTransactionChange('INSERT', full).catch((e) => console.warn('[sync] Failed to enqueue transaction add:', e));
   return id;
 }
 
@@ -168,11 +177,15 @@ export async function updateTransaction(id: string, changes: Partial<Transaction
     payload.date = normalizeDate(changes.date) || changes.date;
   }
   await db.transactions.update(id, payload);
+  const updated = await db.transactions.get(id);
+  if (updated) enqueueTransactionChange('UPDATE', updated).catch((e) => console.warn('[sync] Failed to enqueue transaction update:', e));
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
   const now = new Date().toISOString();
   await db.transactions.update(id, { deletedAt: now, updatedAt: now });
+  const deleted = await db.transactions.get(id);
+  if (deleted) enqueueTransactionChange('DELETE', deleted).catch((e) => console.warn('[sync] Failed to enqueue transaction delete:', e));
 }
 
 export async function getHistoricalPrice(symbol: string, date: string): Promise<HistoricalPrice | undefined> {
@@ -221,6 +234,7 @@ export async function getPreference(key: string): Promise<Preference | undefined
 
 export async function setPreference(key: string, value: unknown): Promise<void> {
   await db.preferences.put({ key, value });
+  enqueuePreferenceChange('INSERT', { key, value }).catch((e) => console.warn('[sync] Failed to enqueue preference:', e));
 }
 
 export async function getExchangeRate(type: 'mep' | 'ccl', date: string): Promise<ExchangeRate | undefined> {
