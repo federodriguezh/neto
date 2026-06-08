@@ -48,8 +48,23 @@ export function useHouseholds() {
         .eq('household_id', hhData.id)
         .is('deleted_at', null);
 
-      setHousehold(hhData);
-      setParticipants(allParts || []);
+      setHousehold({
+        ...hhData,
+        inviteCode: hhData.invite_code,
+        splitMethod: hhData.split_method,
+        fixedSplit: hhData.fixed_split ?? undefined,
+        createdAt: hhData.created_at,
+        updatedAt: hhData.updated_at,
+      });
+      setParticipants((allParts || []).map((p) => ({
+        ...p,
+        householdId: p.household_id,
+        userId: p.user_id ?? undefined,
+        incomeRatio: p.income_ratio ?? 0,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+        deletedAt: p.deleted_at ?? undefined,
+      })));
     } catch { /* ignore, local data already shown */ }
   }, [user]);
 
@@ -66,7 +81,8 @@ export function useHouseholds() {
   const createHousehold = async (name: string, participantName: string) => {
     if (!user) throw new Error('No user');
 
-    const hh = await addLocalHousehold({ name, inviteCode: '', splitMethod: 'proportional' });
+    const inviteCode = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+    const hh = await addLocalHousehold({ name, inviteCode, splitMethod: 'proportional' });
     const part = await addLocalParticipant({ name: participantName, householdId: hh.id, userId: user.id, incomeRatio: 0.5 });
 
     setHousehold(hh);
@@ -75,10 +91,12 @@ export function useHouseholds() {
     enqueueParticipantChange('INSERT', part).catch(() => {});
 
     try {
-      const { data: supabaseHh } = await supabase.from('households').insert({ name }).select().single();
+      const { data: supabaseHh } = await supabase.from('households')
+        .insert({ name, invite_code: inviteCode })
+        .select().single();
       if (supabaseHh) {
-        await updateLocalHousehold(hh.id, { id: supabaseHh.id, inviteCode: supabaseHh.invite_code });
-        setHousehold((prev) => prev ? { ...prev, id: supabaseHh.id, inviteCode: supabaseHh.invite_code } : null);
+        await updateLocalHousehold(hh.id, { id: supabaseHh.id });
+        setHousehold((prev) => prev ? { ...prev, id: supabaseHh.id } : null);
       }
       await supabase.from('participants').insert({
         user_id: user.id, name: participantName,

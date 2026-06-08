@@ -31,11 +31,27 @@ export function useExpenses() {
       const { data: expData } = await supabase.from('expenses')
         .select('*').eq('household_id', household.id).is('deleted_at', null).order('date', { ascending: false });
       if (!expData?.length) return;
-      setExpenses(expData);
+      setExpenses(expData.map((e) => ({
+        ...e,
+        totalAmount: e.total_amount,
+        paidBy: e.paid_by,
+        splitMethod: e.split_method,
+        fixedSplit: e.fixed_split ?? undefined,
+        createdAt: e.created_at,
+        updatedAt: e.updated_at,
+        deletedAt: e.deleted_at ?? undefined,
+      })));
 
       const ids = expData.map((e) => e.id);
       const { data: splitData } = await supabase.from('expense_splits').select('*').in('expense_id', ids);
-      setSplits(splitData || []);
+      setSplits((splitData || []).map((s) => ({
+        ...s,
+        expenseId: s.expense_id,
+        participantId: s.participant_id,
+        settledAt: s.settled_at ?? undefined,
+        createdAt: s.created_at,
+        updatedAt: s.updated_at,
+      })));
     } catch {}
   }, [household]);
 

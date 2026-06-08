@@ -73,7 +73,7 @@ export default function SettingsPage() {
 
   const handleShowOnboarding = async () => {
     await setPreference('onboardingDismissed', false);
-    navigate('/onboarding');
+    window.location.href = '/#/onboarding';
   };
 
   return (

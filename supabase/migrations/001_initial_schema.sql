@@ -25,6 +25,7 @@ CREATE TABLE participants (
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   household_id UUID NOT NULL REFERENCES households(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
+  income_ratio NUMERIC NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at TIMESTAMPTZ

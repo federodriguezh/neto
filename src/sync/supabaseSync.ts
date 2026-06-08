@@ -2,6 +2,54 @@ import { supabase } from '../lib/supabase';
 import { db, getSyncQueue, removeFromSyncQueue, clearSyncQueue } from '../db';
 import type { SyncQueueEntry, IncomeCategory } from '../types';
 
+function camelToSnakeRow(tableName: string, data: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    out[snakeMap(tableName, key)] = value;
+  }
+  return out;
+}
+
+function snakeMap(table: string, key: string): string {
+  const m = FIELD_MAP[table];
+  if (m && key in m) return m[key];
+  return key;
+}
+
+const FIELD_MAP: Record<string, Record<string, string>> = {
+  accounts: {
+    feeType: 'fee_type', feeValue: 'fee_value',
+    createdAt: 'created_at', updatedAt: 'updated_at', deletedAt: 'deleted_at',
+  },
+  transactions: {
+    accountId: 'account_id', assetClass: 'asset_class',
+    realizedPnl: 'realized_pnl',
+    createdAt: 'created_at', updatedAt: 'updated_at', deletedAt: 'deleted_at',
+  },
+  income_entries: {
+    participantId: 'participant_id',
+    createdAt: 'created_at', updatedAt: 'updated_at', deletedAt: 'deleted_at',
+  },
+  households: {
+    inviteCode: 'invite_code', splitMethod: 'split_method', fixedSplit: 'fixed_split',
+    createdAt: 'created_at', updatedAt: 'updated_at',
+  },
+  participants: {
+    householdId: 'household_id', userId: 'user_id', incomeRatio: 'income_ratio',
+    createdAt: 'created_at', updatedAt: 'updated_at', deletedAt: 'deleted_at',
+  },
+  expenses: {
+    totalAmount: 'total_amount', paidBy: 'paid_by',
+    splitMethod: 'split_method', fixedSplit: 'fixed_split',
+    createdAt: 'created_at', updatedAt: 'updated_at', deletedAt: 'deleted_at',
+  },
+  expense_splits: {
+    expenseId: 'expense_id', participantId: 'participant_id',
+    settledAt: 'settled_at',
+    createdAt: 'created_at', updatedAt: 'updated_at',
+  },
+};
+
 export async function flushQueue(): Promise<{ success: number; failed: number }> {
   const queue = await getSyncQueue();
   if (queue.length === 0) return { success: 0, failed: 0 };
@@ -30,7 +78,8 @@ async function processQueueEntry(entry: SyncQueueEntry): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No authenticated user');
 
-  const dataWithUser = { ...data, user_id: user.id };
+  const mapped = camelToSnakeRow(tableName, data as Record<string, unknown>);
+  const dataWithUser = { ...mapped, user_id: user.id };
 
   switch (operation) {
     case 'INSERT':

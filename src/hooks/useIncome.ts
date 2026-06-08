@@ -28,7 +28,13 @@ export function useIncome() {
         .is('deleted_at', null)
         .order('date', { ascending: false });
       if (data && data.length > 0) {
-        setEntries(data);
+        setEntries(data.map((e) => ({
+          ...e,
+          participantId: e.participant_id ?? undefined,
+          createdAt: e.created_at,
+          updatedAt: e.updated_at,
+          deletedAt: e.deleted_at ?? undefined,
+        })));
       }
     } catch { /* ignore network errors, local data is already shown */ }
   }, [user]);

@@ -26,6 +26,8 @@ export default function HouseholdsPage() {
   const [editingParticipant, setEditingParticipant] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editRatio, setEditRatio] = useState('');
+  const [showAddParticipant, setShowAddParticipant] = useState(false);
+  const [newParticipantName, setNewParticipantName] = useState('');
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,13 +58,13 @@ export default function HouseholdsPage() {
   };
 
   const handleAddParticipant = async () => {
-    const name = prompt(t('households.addParticipantPrompt'));
-    if (name) {
-      try {
-        await addParticipant(name);
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to add participant');
-      }
+    if (!newParticipantName.trim()) return;
+    try {
+      await addParticipant(newParticipantName.trim());
+      setNewParticipantName('');
+      setShowAddParticipant(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add participant');
     }
   };
 
@@ -326,13 +328,38 @@ export default function HouseholdsPage() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-medium text-slate-200">{t('households.participants')}</h2>
           <button
-            onClick={handleAddParticipant}
+            onClick={() => setShowAddParticipant((v) => !v)}
             className="inline-flex items-center gap-1 rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-600 transition-colors"
           >
             <Plus size={14} />
             {t('households.addParticipant')}
           </button>
         </div>
+        {showAddParticipant && (
+          <div className="flex items-center gap-2 mb-3">
+            <input
+              type="text"
+              value={newParticipantName}
+              onChange={(e) => setNewParticipantName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddParticipant()}
+              placeholder={t('households.addParticipantPrompt')}
+              autoFocus
+              className="flex-1 rounded-lg bg-slate-700 px-3 py-2 text-sm text-slate-100 border border-slate-600 focus:border-emerald-500 focus:outline-none"
+            />
+            <button
+              onClick={handleAddParticipant}
+              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 transition-colors"
+            >
+              {t('households.save')}
+            </button>
+            <button
+              onClick={() => { setShowAddParticipant(false); setNewParticipantName(''); }}
+              className="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-500 transition-colors"
+            >
+              {t('households.cancel')}
+            </button>
+          </div>
+        )}
         <div className="flex flex-col gap-2">
           {participants.map(participant => (
             <div key={participant.id} className="rounded-lg bg-slate-900 p-3">

@@ -51,6 +51,7 @@ export function useSpyComparison(
 ) {
   const [data, setData] = useState<ComparisonPoint[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!enabled || portfolioHistoryArs.length === 0) {
@@ -130,6 +131,7 @@ export function useSpyComparison(
         }
       } catch (e) {
         console.error('Failed to load SPY data:', e);
+        if (!cancelled) setError('SPY data not available. Run the build scripts to generate it.');
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -141,5 +143,5 @@ export function useSpyComparison(
     return () => { cancelled = true; };
   }, [portfolioHistoryArs, transactions, displayCurrency, enabled]);
 
-  return { data, loading };
+  return { data, loading, error };
 }
