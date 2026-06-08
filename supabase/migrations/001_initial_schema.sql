@@ -309,6 +309,7 @@ CREATE OR REPLACE FUNCTION get_accessible_households()
 RETURNS SETOF UUID
 LANGUAGE sql
 SECURITY DEFINER
+SET search_path TO public, auth
 STABLE
 AS $$
   SELECT household_id FROM participants
