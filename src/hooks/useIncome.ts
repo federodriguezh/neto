@@ -25,10 +25,11 @@ export function useIncome() {
         .from('income_entries')
         .select('*')
         .eq('user_id', user.id)
-        .is('deleted_at', null)
         .order('date', { ascending: false });
       if (data && data.length > 0) {
-        setEntries(data.map((e) => ({
+        setEntries(data
+          .filter((e) => e.deleted_at === null)
+          .map((e) => ({
           ...e,
           participantId: e.participant_id ?? undefined,
           createdAt: e.created_at,

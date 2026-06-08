@@ -38,11 +38,11 @@ export function useHouseholds() {
       const { data: partRows } = await supabase
         .from('participants')
         .select('*')
-        .eq('user_id', user.id)
-        .is('deleted_at', null);
+        .eq('user_id', user.id);
       if (!partRows?.length) return;
+      const activeParts = partRows.filter((p) => p.deleted_at === null);
 
-      const householdIds = [...new Set(partRows.map((p) => p.household_id))];
+      const householdIds = [...new Set(activeParts.map((p) => p.household_id))];
       const { data: hhRows } = await supabase
         .from('households')
         .select('*')
@@ -67,10 +67,9 @@ export function useHouseholds() {
       const { data: allParts } = await supabase
         .from('participants')
         .select('*')
-        .eq('household_id', activeId)
-        .is('deleted_at', null);
+        .eq('household_id', activeId);
       setParticipants(
-        (allParts || []).map((p) => ({
+        (allParts || []).filter((p) => p.deleted_at === null).map((p) => ({
           ...p,
           householdId: p.household_id,
           userId: p.user_id ?? undefined,
@@ -102,10 +101,9 @@ export function useHouseholds() {
         const { data: allParts } = await supabase
           .from('participants')
           .select('*')
-          .eq('household_id', id)
-          .is('deleted_at', null);
+          .eq('household_id', id);
         setParticipants(
-          (allParts || []).map((p) => ({
+          (allParts || []).filter((p) => p.deleted_at === null).map((p) => ({
             ...p,
             householdId: p.household_id,
             userId: p.user_id ?? undefined,
@@ -143,9 +141,9 @@ export function useHouseholds() {
     if (hhError || !hhData) throw new Error('Invalid invite code');
 
     const { data: existing } = await supabase
-      .from('participants').select('id')
-      .eq('household_id', hhData.id).eq('user_id', user.id).is('deleted_at', null).single();
-    if (existing) throw new Error('Already a member');
+      .from('participants').select('id, deleted_at')
+      .eq('household_id', hhData.id).eq('user_id', user.id).single();
+    if (existing && !existing.deleted_at) throw new Error('Already a member');
 
     const mappedHh: Household = {
       ...hhData,
@@ -196,14 +194,14 @@ export function useHouseholds() {
     if (!activeHousehold || !user) return;
     try {
       const { data: allParts } = await supabase.from('participants')
-        .select('id').eq('household_id', activeHousehold.id).is('deleted_at', null);
+        .select('id').eq('household_id', activeHousehold.id);
       if (!allParts?.length) return;
       const incomes: Record<string, number> = {};
       let total = 0;
       for (const p of allParts) {
         const { data: incomeData } = await supabase.from('income_entries')
-          .select('amount').eq('participant_id', p.id).is('deleted_at', null);
-        const sum = (incomeData || []).reduce((s, e) => s + e.amount, 0);
+          .select('amount').eq('participant_id', p.id);
+        const sum = (incomeData || []).filter((e: Record<string, unknown>) => !e.deleted_at).reduce((s: number, e: { amount: number }) => s + e.amount, 0);
         incomes[p.id] = sum;
         total += sum;
       }

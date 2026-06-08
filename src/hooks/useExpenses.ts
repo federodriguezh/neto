@@ -28,7 +28,7 @@ export function useExpenses() {
   const fetchFromSupabase = useCallback(async () => {
     try {
       let query = supabase.from('expenses')
-        .select('*').is('deleted_at', null).order('date', { ascending: false });
+        .select('*').order('date', { ascending: false });
       if (household) {
         query = query.eq('household_id', household.id);
       } else {
@@ -36,7 +36,9 @@ export function useExpenses() {
       }
       const { data: expData } = await query;
       if (!expData?.length) return;
-      setExpenses(expData.map((e) => ({
+      setExpenses(expData
+        .filter((e) => e.deleted_at === null)
+        .map((e) => ({
         ...e,
         totalAmount: e.total_amount,
         paidBy: e.paid_by,

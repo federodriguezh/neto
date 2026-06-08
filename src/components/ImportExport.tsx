@@ -48,15 +48,13 @@ export default function ImportExport() {
       const { data: incomeData } = await supabase
         .from('income_entries')
         .select('*')
-        .eq('user_id', user.id)
-        .is('deleted_at', null);
-      incomeEntries = incomeData || [];
+        .eq('user_id', user.id);
+      incomeEntries = (incomeData || []).filter((e) => !e.deleted_at);
 
       const { data: expenseData } = await supabase
         .from('expenses')
         .select('*')
-        .eq('created_by', user.id)
-        .is('deleted_at', null);
+        .eq('created_by', user.id);
       expenses = expenseData || [];
     }
 

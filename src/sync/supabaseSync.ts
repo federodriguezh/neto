@@ -131,8 +131,8 @@ export async function initialSync(): Promise<void> {
   await clearSyncQueue();
   
   const [accountsRes, transactionsRes, preferencesRes] = await Promise.all([
-    supabase.from('accounts').select('*').is('deleted_at', null),
-    supabase.from('transactions').select('*').is('deleted_at', null),
+    supabase.from('accounts').select('*'),
+    supabase.from('transactions').select('*'),
     supabase.from('preferences').select('*'),
   ]);
 
@@ -273,7 +273,7 @@ export async function initialSyncExtended(): Promise<void> {
 
 async function checkRemoteHasExtendedData(userId: string): Promise<boolean> {
   const { data: incomeCheck } = await supabase
-    .from('income_entries').select('id').eq('user_id', userId).is('deleted_at', null).limit(1);
+    .from('income_entries').select('id').eq('user_id', userId).limit(1);
   if ((incomeCheck ?? []).length > 0) return true;
 
   const { data: partCheck } = await supabase
@@ -347,7 +347,7 @@ async function uploadLocalExtendedData(userId: string): Promise<void> {
 
 async function pullIncomeFromSupabase(userId: string): Promise<void> {
   const { data: incomeData } = await supabase.from('income_entries')
-    .select('*').eq('user_id', userId).is('deleted_at', null);
+    .select('*').eq('user_id', userId);
   if (incomeData) {
     for (const e of incomeData) {
       await db.incomeEntries.put({
@@ -362,7 +362,7 @@ async function pullIncomeFromSupabase(userId: string): Promise<void> {
 
 async function pullHouseholdAndExpenses(userId: string): Promise<void> {
   const { data: partData } = await supabase.from('participants')
-    .select('*').eq('user_id', userId).is('deleted_at', null).single();
+    .select('*').eq('user_id', userId).single();
   if (!partData) return;
 
   const { data: hhData } = await supabase.from('households')
@@ -376,7 +376,7 @@ async function pullHouseholdAndExpenses(userId: string): Promise<void> {
   }
 
   const { data: allParts } = await supabase.from('participants')
-    .select('*').eq('household_id', partData.household_id).is('deleted_at', null);
+    .select('*').eq('household_id', partData.household_id);
   if (allParts) {
     for (const p of allParts) {
       await db.participants.put({
@@ -389,7 +389,7 @@ async function pullHouseholdAndExpenses(userId: string): Promise<void> {
   }
 
   const { data: expData } = await supabase.from('expenses')
-    .select('*').eq('household_id', partData.household_id).is('deleted_at', null);
+    .select('*').eq('household_id', partData.household_id);
   if (expData) {
     await db.expenses.clear();
     for (const e of expData) {
