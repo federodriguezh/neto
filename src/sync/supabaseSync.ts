@@ -191,12 +191,10 @@ export async function initialSync(): Promise<void> {
       }
     }
     if (localPrefs.length > 0) {
-      for (const p of localPrefs) {
-        const { error } = await supabase.from('preferences').insert({ user_id: user.id, key: p.key, value: p.value });
-        if (error && error.code === '23505') {
-          await supabase.from('preferences').update({ value: p.value }).eq('user_id', user.id).eq('key', p.key);
-        }
-      }
+      await supabase.from('preferences').upsert(
+        localPrefs.map((p) => ({ user_id: user.id, key: p.key, value: p.value })),
+        { onConflict: 'user_id,key' }
+      );
     }
 
     await clearSyncQueue();

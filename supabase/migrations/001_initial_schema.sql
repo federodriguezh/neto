@@ -304,54 +304,40 @@ CREATE POLICY "households_delete" ON households FOR DELETE
   TO authenticated USING (user_belongs_to_household(id));
 
 -- Participants
+-- Helper function: get all households the current user belongs to (SECURITY DEFINER bypasses RLS recursion)
+CREATE OR REPLACE FUNCTION get_accessible_households()
+RETURNS SETOF UUID
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT household_id FROM participants
+  WHERE user_id = auth.uid() AND deleted_at IS NULL;
+$$;
+
 CREATE POLICY "participants_select" ON participants FOR SELECT
   TO authenticated USING (
-    user_id = (SELECT auth.uid())
-    OR EXISTS (
-      SELECT 1 FROM participants p2
-      WHERE p2.household_id = participants.household_id
-      AND p2.user_id = (SELECT auth.uid())
-      AND p2.deleted_at IS NULL
-    )
+    user_id = auth.uid()
+    OR household_id IN (SELECT get_accessible_households())
   );
 CREATE POLICY "participants_insert" ON participants FOR INSERT
   TO authenticated WITH CHECK (
-    user_id = (SELECT auth.uid())
-    OR EXISTS (
-      SELECT 1 FROM participants p2
-      WHERE p2.household_id = participants.household_id
-      AND p2.user_id = (SELECT auth.uid())
-      AND p2.deleted_at IS NULL
-    )
+    user_id = auth.uid()
+    OR household_id IN (SELECT get_accessible_households())
   );
 CREATE POLICY "participants_update" ON participants FOR UPDATE
   TO authenticated USING (
-    user_id = (SELECT auth.uid())
-    OR EXISTS (
-      SELECT 1 FROM participants p2
-      WHERE p2.household_id = participants.household_id
-      AND p2.user_id = (SELECT auth.uid())
-      AND p2.deleted_at IS NULL
-    )
+    user_id = auth.uid()
+    OR household_id IN (SELECT get_accessible_households())
   )
   WITH CHECK (
-    user_id = (SELECT auth.uid())
-    OR EXISTS (
-      SELECT 1 FROM participants p2
-      WHERE p2.household_id = participants.household_id
-      AND p2.user_id = (SELECT auth.uid())
-      AND p2.deleted_at IS NULL
-    )
+    user_id = auth.uid()
+    OR household_id IN (SELECT get_accessible_households())
   );
 CREATE POLICY "participants_delete" ON participants FOR DELETE
   TO authenticated USING (
-    user_id = (SELECT auth.uid())
-    OR EXISTS (
-      SELECT 1 FROM participants p2
-      WHERE p2.household_id = participants.household_id
-      AND p2.user_id = (SELECT auth.uid())
-      AND p2.deleted_at IS NULL
-    )
+    user_id = auth.uid()
+    OR household_id IN (SELECT get_accessible_households())
   );
 
 -- Expenses
