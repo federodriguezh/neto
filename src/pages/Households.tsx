@@ -110,11 +110,25 @@ export default function HouseholdsPage() {
     }
   };
 
-  const copyInviteCode = () => {
-    if (household?.inviteCode) {
-      navigator.clipboard.writeText(household.inviteCode);
-      alert(t('households.copiedToClipboard'));
+  const copyInviteCode = async () => {
+    if (!household?.inviteCode) return;
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(household.inviteCode);
+      copied = true;
+    } catch {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = household.inviteCode;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        copied = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch { /* last resort: user can manually copy */ }
     }
+    if (copied) alert(t('households.copiedToClipboard'));
   };
 
   if (loading) {

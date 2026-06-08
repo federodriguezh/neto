@@ -3,6 +3,7 @@ import { LayoutDashboard, List, Settings, BookOpen, Wifi, WifiOff, Cloud, Dollar
 import { useTranslation } from '../i18n';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useHouseholds } from '../hooks/useHouseholds';
+import { useState } from 'react';
 
 interface LayoutProps {
   showOnboarding: boolean;
@@ -13,19 +14,19 @@ export default function Layout({ showOnboarding }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isOnline, pendingCount } = useSyncStatus();
-  const { household } = useHouseholds();
+  const { household, households, activateHousehold, activeHouseholdId } = useHouseholds();
+  const [showSwitcher, setShowSwitcher] = useState(false);
 
   const navItems = [
     { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
     { to: '/transactions', label: t('nav.transactions'), icon: List },
     { to: '/income', label: t('nav.income'), icon: DollarSign },
+    { to: '/households', label: t('nav.households'), icon: Users },
   ];
 
   if (household) {
     navItems.push({ to: '/expenses', label: t('nav.expenses'), icon: Receipt });
     navItems.push({ to: '/balances', label: t('nav.balances'), icon: Scale });
-  } else {
-    navItems.push({ to: '/households', label: t('nav.households'), icon: Users });
   }
 
   navItems.push({ to: '/settings', label: t('nav.settings'), icon: Settings });
@@ -68,6 +69,38 @@ export default function Layout({ showOnboarding }: LayoutProps) {
             </NavLink>
           );
         })}
+
+        {/* Household switcher */}
+        {households.length > 1 && (
+          <div className="pt-2 border-t border-slate-800">
+            <button
+              onClick={() => setShowSwitcher((v) => !v)}
+              className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+            >
+              <Users size={16} />
+              <span className="flex-1 text-left truncate">{activeHouseholdId ? (households.find((h) => h.id === activeHouseholdId)?.name || activeHouseholdId.slice(0, 8)) : 'No group'}</span>
+              <span className="text-xs text-slate-500">{showSwitcher ? '▴' : '▾'}</span>
+            </button>
+            {showSwitcher && (
+              <div className="mt-1 flex flex-col gap-1">
+                {households.map((h) => (
+                  <button
+                    key={h.id}
+                    onClick={() => { activateHousehold(h.id); setShowSwitcher(false); }}
+                    className={`text-left rounded-lg px-3 py-2 text-sm transition-colors ${
+                      h.id === activeHouseholdId
+                        ? 'bg-slate-700 text-slate-100'
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                    }`}
+                  >
+                    {h.name || h.id.slice(0, 8)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mt-auto pt-4 border-t border-slate-800">
           <div className="flex items-center gap-2 px-3 py-2 text-xs">
             {isOnline ? (

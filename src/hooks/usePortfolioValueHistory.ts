@@ -82,23 +82,33 @@ async function buildPriceIndex(
   transactions: Transaction[]
 ): Promise<Map<string, HistoricalPrice[]>> {
   const index = new Map<string, HistoricalPrice[]>();
+
+  const missingSymbols: { symbol: string; assetClass: AssetClass }[] = [];
   for (let i = 0; i < symbols.length; i++) {
     const symbol = symbols[i];
     const assetClass = assetClasses[i];
-    let externalPrices = await getHistoricalPricesForSymbol(symbol);
-
+    const cached = await getHistoricalPricesForSymbol(symbol);
     if (
-      (assetClass === 'arg_stocks' || assetClass === 'arg_cedears' || assetClass === 'arg_bonds') &&
-      externalPrices.length === 0
+      cached.length === 0 &&
+      (assetClass === 'arg_stocks' || assetClass === 'arg_cedears' || assetClass === 'arg_bonds')
     ) {
-      try {
-        await fetchHistoricalPrices(symbol, assetClass);
-        externalPrices = await getHistoricalPricesForSymbol(symbol);
-      } catch (e) {
-        console.error(`Failed to fetch historical prices for ${symbol}:`, e);
-      }
+      missingSymbols.push({ symbol, assetClass });
     }
+  }
 
+  if (missingSymbols.length > 0) {
+    await Promise.all(
+      missingSymbols.map(({ symbol, assetClass }) =>
+        fetchHistoricalPrices(symbol, assetClass).catch((e) =>
+          console.error(`Failed to fetch historical prices for ${symbol}:`, e)
+        )
+      )
+    );
+  }
+
+  for (let i = 0; i < symbols.length; i++) {
+    const symbol = symbols[i];
+    const externalPrices = await getHistoricalPricesForSymbol(symbol);
     const merged = mergeTransactionPrices(symbol, externalPrices, transactions);
     index.set(symbol, merged);
   }

@@ -97,6 +97,8 @@ async function processQueueEntry(entry: SyncQueueEntry): Promise<void> {
 }
 
 export async function initialSync(): Promise<void> {
+  await clearSyncQueue();
+  
   const [accountsRes, transactionsRes, preferencesRes] = await Promise.all([
     supabase.from('accounts').select('*').eq('deleted_at', null),
     supabase.from('transactions').select('*').eq('deleted_at', null),
@@ -210,9 +212,96 @@ export async function initialSyncExtended(): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
 
-  // Sync income entries
+  const remoteHasExtendedData = await checkRemoteHasExtendedData(user.id);
+
+  if (!remoteHasExtendedData) {
+    await uploadLocalExtendedData(user.id);
+    return;
+  }
+
+  // Pull from Supabase
+  await pullIncomeFromSupabase(user.id);
+  await pullHouseholdAndExpenses(user.id);
+}
+
+async function checkRemoteHasExtendedData(userId: string): Promise<boolean> {
+  const { count: incomeCount } = await supabase
+    .from('income_entries').select('*', { count: 'exact', head: true })
+    .eq('user_id', userId).is('deleted_at', null);
+  if ((incomeCount ?? 0) > 0) return true;
+
+  const { data: partData } = await supabase
+    .from('participants').select('id').eq('user_id', userId).limit(1);
+  if ((partData ?? []).length > 0) return true;
+
+  return false;
+}
+
+async function uploadLocalExtendedData(userId: string): Promise<void> {
+  const localIncome = await db.incomeEntries.filter((e) => e.deletedAt === undefined).toArray();
+  const localHh = await db.households.toArray();
+  const localParts = await db.participants.filter((p) => p.deletedAt === undefined).toArray();
+  const localExp = await db.expenses.filter((e) => e.deletedAt === undefined).toArray();
+  const localSplits = await db.expenseSplits.toArray();
+
+  if (localIncome.length > 0) {
+    for (const e of localIncome) {
+      await supabase.from('income_entries').insert({
+        user_id: userId, id: e.id, date: e.date, source: e.source,
+        category: e.category, amount: e.amount, currency: e.currency,
+        participant_id: e.participantId ?? null, notes: e.notes ?? null,
+        created_at: e.createdAt, updated_at: e.updatedAt, deleted_at: e.deletedAt ?? null,
+      });
+    }
+  }
+
+  if (localHh.length > 0) {
+    for (const h of localHh) {
+      await supabase.from('households').insert({
+        id: h.id, name: h.name, invite_code: h.inviteCode,
+        split_method: h.splitMethod, fixed_split: h.fixedSplit ?? null,
+        created_at: h.createdAt, updated_at: h.updatedAt,
+      });
+    }
+  }
+
+  if (localParts.length > 0) {
+    for (const p of localParts) {
+      await supabase.from('participants').insert({
+        id: p.id, user_id: p.userId ?? null, household_id: p.householdId,
+        name: p.name, income_ratio: p.incomeRatio,
+        created_at: p.createdAt, updated_at: p.updatedAt, deleted_at: p.deletedAt ?? null,
+      });
+    }
+  }
+
+  if (localExp.length > 0) {
+    for (const e of localExp) {
+      await supabase.from('expenses').insert({
+        id: e.id, household_id: e.householdId ?? null, date: e.date,
+        description: e.description, category: e.category, total_amount: e.totalAmount,
+        currency: e.currency, paid_by: e.paidBy, split_method: e.splitMethod,
+        fixed_split: e.fixedSplit ?? null,
+        created_at: e.createdAt, updated_at: e.updatedAt, deleted_at: e.deletedAt ?? null,
+      });
+    }
+  }
+
+  if (localSplits.length > 0) {
+    for (const s of localSplits) {
+      await supabase.from('expense_splits').insert({
+        id: s.id, expense_id: s.expenseId, participant_id: s.participantId,
+        share: s.share, amount: s.amount, settled: s.settled,
+        settled_at: s.settledAt ?? null,
+        created_at: s.createdAt, updated_at: s.updatedAt,
+      });
+    }
+  }
+}
+
+async function pullIncomeFromSupabase(userId: string): Promise<void> {
   const { data: incomeData } = await supabase.from('income_entries')
-    .select('*').eq('user_id', user.id).is('deleted_at', null);
+    .select('*').eq('user_id', userId).is('deleted_at', null);
   if (incomeData) {
     for (const e of incomeData) {
       await db.incomeEntries.put({
@@ -223,62 +312,63 @@ export async function initialSyncExtended(): Promise<void> {
       });
     }
   }
+}
 
-  // Sync household + participants
+async function pullHouseholdAndExpenses(userId: string): Promise<void> {
   const { data: partData } = await supabase.from('participants')
-    .select('*').eq('user_id', user.id).is('deleted_at', null).single();
-  if (partData) {
-    const { data: hhData } = await supabase.from('households')
-      .select('*').eq('id', partData.household_id).single();
-    if (hhData) {
-      await db.households.put({
-        id: hhData.id, name: hhData.name, inviteCode: hhData.invite_code,
-        splitMethod: hhData.split_method, fixedSplit: hhData.fixed_split ?? undefined,
-        createdAt: hhData.created_at, updatedAt: hhData.updated_at,
+    .select('*').eq('user_id', userId).is('deleted_at', null).single();
+  if (!partData) return;
+
+  const { data: hhData } = await supabase.from('households')
+    .select('*').eq('id', partData.household_id).single();
+  if (hhData) {
+    await db.households.put({
+      id: hhData.id, name: hhData.name, inviteCode: hhData.invite_code,
+      splitMethod: hhData.split_method, fixedSplit: hhData.fixed_split ?? undefined,
+      createdAt: hhData.created_at, updatedAt: hhData.updated_at,
+    });
+  }
+
+  const { data: allParts } = await supabase.from('participants')
+    .select('*').eq('household_id', partData.household_id).is('deleted_at', null);
+  if (allParts) {
+    for (const p of allParts) {
+      await db.participants.put({
+        id: p.id, name: p.name, householdId: p.household_id,
+        userId: p.user_id ?? undefined, incomeRatio: p.income_ratio ?? 0,
+        createdAt: p.created_at, updatedAt: p.updated_at,
+        deletedAt: p.deleted_at ?? undefined,
       });
     }
-    const { data: allParts } = await supabase.from('participants')
-      .select('*').eq('household_id', partData.household_id).is('deleted_at', null);
-    if (allParts) {
-      for (const p of allParts) {
-        await db.participants.put({
-          id: p.id, name: p.name, householdId: p.household_id,
-          userId: p.user_id ?? undefined, incomeRatio: p.income_ratio,
-          createdAt: p.created_at, updatedAt: p.updated_at,
-          deletedAt: p.deleted_at ?? undefined,
-        });
-      }
+  }
+
+  const { data: expData } = await supabase.from('expenses')
+    .select('*').eq('household_id', partData.household_id).is('deleted_at', null);
+  if (expData) {
+    await db.expenses.clear();
+    for (const e of expData) {
+      await db.expenses.put({
+        id: e.id, date: e.date, description: e.description, category: e.category,
+        totalAmount: e.total_amount, currency: e.currency, paidBy: e.paid_by,
+        splitMethod: e.split_method, fixedSplit: e.fixed_split ?? undefined,
+        createdAt: e.created_at, updatedAt: e.updated_at,
+        deletedAt: e.deleted_at ?? undefined,
+      });
     }
 
-    // Sync expenses + splits
-    const { data: expData } = await supabase.from('expenses')
-      .select('*').eq('household_id', partData.household_id).is('deleted_at', null);
-    if (expData) {
-      const ids = expData.map((e) => e.id);
-      const { data: splitData } = ids.length > 0
-        ? await supabase.from('expense_splits').select('*').in('expense_id', ids)
-        : { data: [] };
-
-      await db.expenses.clear();
-      for (const e of expData) {
-        await db.expenses.put({
-          id: e.id, date: e.date, description: e.description, category: e.category,
-          totalAmount: e.total_amount, currency: e.currency, paidBy: e.paid_by,
-          splitMethod: e.split_method, fixedSplit: e.fixed_split ?? undefined,
-          createdAt: e.created_at, updatedAt: e.updated_at,
-          deletedAt: e.deleted_at ?? undefined,
+    const ids = expData.map((e) => e.id);
+    const { data: splitData } = ids.length > 0
+      ? await supabase.from('expense_splits').select('*').in('expense_id', ids)
+      : { data: [] };
+    await db.expenseSplits.clear();
+    if (splitData) {
+      for (const s of splitData) {
+        await db.expenseSplits.put({
+          id: s.id, expenseId: s.expense_id, participantId: s.participant_id,
+          share: s.share, amount: s.amount, settled: s.settled,
+          settledAt: s.settled_at ?? undefined,
+          createdAt: s.created_at, updatedAt: s.updated_at,
         });
-      }
-      await db.expenseSplits.clear();
-      if (splitData) {
-        for (const s of splitData) {
-          await db.expenseSplits.put({
-            id: s.id, expenseId: s.expense_id, participantId: s.participant_id,
-            share: s.share, amount: s.amount, settled: s.settled,
-            settledAt: s.settled_at ?? undefined,
-            createdAt: s.created_at, updatedAt: s.updated_at,
-          });
-        }
       }
     }
   }

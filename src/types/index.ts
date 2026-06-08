@@ -124,6 +124,7 @@ export interface Expense {
   paidBy: string;
   splitMethod: 'proportional' | 'fixed';
   fixedSplit?: number;
+  householdId?: string;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;

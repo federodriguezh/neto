@@ -348,8 +348,8 @@ export async function deleteLocalIncomeEntry(id: string): Promise<void> {
 
 // ── Households ──
 
-export async function getLocalHousehold(): Promise<Household | undefined> {
-  return db.households.toCollection().first();
+export async function getLocalHousehold(): Promise<Household[]> {
+  return db.households.toArray();
 }
 
 export async function addLocalHousehold(household: Omit<Household, 'id' | 'createdAt' | 'updatedAt'>): Promise<Household> {

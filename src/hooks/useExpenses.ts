@@ -26,10 +26,15 @@ export function useExpenses() {
   }, []);
 
   const fetchFromSupabase = useCallback(async () => {
-    if (!household) return;
     try {
-      const { data: expData } = await supabase.from('expenses')
-        .select('*').eq('household_id', household.id).is('deleted_at', null).order('date', { ascending: false });
+      let query = supabase.from('expenses')
+        .select('*').is('deleted_at', null).order('date', { ascending: false });
+      if (household) {
+        query = query.eq('household_id', household.id);
+      } else {
+        query = query.is('household_id', null);
+      }
+      const { data: expData } = await query;
       if (!expData?.length) return;
       setExpenses(expData.map((e) => ({
         ...e,
@@ -91,7 +96,7 @@ export function useExpenses() {
   };
 
   const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt' | 'updatedAt' | 'household_id'>) => {
-    if (!household || !user) throw new Error('No household or user');
+    if (!user) throw new Error('No user');
 
     const fullExpense = await addLocalExpense(expense);
     setExpenses((prev) => [fullExpense, ...prev]);
@@ -104,9 +109,10 @@ export function useExpenses() {
     }
 
     try {
-      const { data: supabaseExp } = await supabase.from('expenses').insert({
-        ...expense, household_id: household.id, created_by: user.id,
-      }).select().single();
+      const supabaseExpense: Record<string, unknown> = { ...expense, created_by: user.id };
+      if (household) supabaseExpense.household_id = household.id;
+      const { data: supabaseExp } = await supabase.from('expenses')
+        .insert(supabaseExpense).select().single();
       if (supabaseExp) {
         const splitsToCreate = calculateSplits(expense.totalAmount, expense.splitMethod, expense.fixedSplit)
           .map((s) => ({ ...s, expense_id: supabaseExp.id }));

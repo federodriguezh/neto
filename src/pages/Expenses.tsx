@@ -11,7 +11,7 @@ const CATEGORIES = ['groceries', 'utilities', 'rent', 'transport', 'entertainmen
 export default function ExpensesPage() {
   const { t } = useTranslation();
   const { displayCurrency } = useDisplayCurrency();
-  const { household, participants } = useHouseholds();
+  const { participants } = useHouseholds();
   const { expenses, loading, addExpense, updateExpense, deleteExpense, settleSplit, getSplitsForExpense } = useExpenses();
   
   const [showForm, setShowForm] = useState(false);
@@ -95,18 +95,6 @@ export default function ExpensesPage() {
   const monthlyTotal = expenses
     .filter(e => e.date.startsWith(`${currentYear}-${String(currentMonth).padStart(2, '0')}`))
     .reduce((sum, e) => sum + e.totalAmount, 0);
-
-  if (!household) {
-    return (
-      <div className="flex flex-col gap-6">
-        <h1 className="text-2xl font-bold text-slate-100">{t('expenses.title')}</h1>
-        <div className="rounded-xl bg-slate-800 p-8 text-center">
-          <Receipt size={48} className="mx-auto mb-4 text-slate-400" />
-          <p className="text-slate-300">{t('expenses.noHousehold')}</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -204,6 +192,7 @@ export default function ExpensesPage() {
               />
             </div>
 
+            {participants.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">
                 {t('expenses.paidBy')}
@@ -221,7 +210,9 @@ export default function ExpensesPage() {
                 ))}
               </select>
             </div>
+            )}
 
+            {participants.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">
                 {t('expenses.splitMethod')}
@@ -235,6 +226,7 @@ export default function ExpensesPage() {
                 <option value="fixed">{t('expenses.fixed')}</option>
               </select>
             </div>
+            )}
 
             {splitMethod === 'fixed' && (
               <div className="md:col-span-2">

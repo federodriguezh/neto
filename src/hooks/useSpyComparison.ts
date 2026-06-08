@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { PortfolioHistory, Transaction, DisplayCurrency } from '../types';
 import { fetchSpyHistory } from '../api/spy';
 import { computeFlowAdjustedIndex } from '../utils/flowAdjusted';
-import { getExchangeRateForDate } from '../api/exchangeRates';
+import { getExchangeRatesForType } from '../db';
 
 export interface ComparisonPoint {
   date: string;
@@ -67,30 +67,56 @@ export function useSpyComparison(
         if (cancelled) return;
 
         const historyForComparison: PortfolioHistory[] = [];
-        for (const entry of portfolioHistoryArs) {
-          if (displayCurrency === 'ARS') {
+        if (displayCurrency === 'ARS') {
+          for (const entry of portfolioHistoryArs) {
             historyForComparison.push(entry);
-            continue;
           }
-          const rate = await getExchangeRateForDate(displayCurrency === 'MEP' ? 'mep' : 'ccl', entry.date);
-          if (rate !== undefined && rate > 0) {
-            historyForComparison.push({ date: entry.date, value: entry.value / rate });
+        } else {
+          const type = displayCurrency === 'MEP' ? 'mep' : 'ccl';
+          const allRates = await getExchangeRatesForType(type);
+          const rateMap = new Map<string, number>();
+          const sortedRates = [...allRates].sort((a, b) => a.date.localeCompare(b.date));
+          for (const r of allRates) rateMap.set(r.date, r.rate);
+
+          for (const entry of portfolioHistoryArs) {
+            let rate: number | undefined = rateMap.get(entry.date);
+            if (rate === undefined) {
+              const before = sortedRates.filter((r) => r.date < entry.date);
+              if (before.length > 0) rate = before[before.length - 1].rate;
+              else {
+                const after = sortedRates.filter((r) => r.date > entry.date);
+                if (after.length > 0) rate = after[0].rate;
+              }
+            }
+            if (rate !== undefined && rate > 0) {
+              historyForComparison.push({ date: entry.date, value: entry.value / rate });
+            }
           }
         }
 
         const txForComparison: Transaction[] = [];
-        for (const tx of transactions) {
-          if (displayCurrency === 'ARS') {
-            txForComparison.push(tx);
-            continue;
-          }
-          const rate = await getExchangeRateForDate(displayCurrency === 'MEP' ? 'mep' : 'ccl', tx.date);
-          if (rate !== undefined && rate > 0) {
-            txForComparison.push({
-              ...tx,
-              price: tx.price / rate,
-              fees: tx.fees / rate,
-            });
+        if (displayCurrency === 'ARS') {
+          for (const tx of transactions) txForComparison.push(tx);
+        } else {
+          const type = displayCurrency === 'MEP' ? 'mep' : 'ccl';
+          const allRates = await getExchangeRatesForType(type);
+          const rateMap = new Map<string, number>();
+          const sortedRates = [...allRates].sort((a, b) => a.date.localeCompare(b.date));
+          for (const r of allRates) rateMap.set(r.date, r.rate);
+
+          for (const tx of transactions) {
+            let rate: number | undefined = rateMap.get(tx.date);
+            if (rate === undefined) {
+              const before = sortedRates.filter((r) => r.date < tx.date);
+              if (before.length > 0) rate = before[before.length - 1].rate;
+              else {
+                const after = sortedRates.filter((r) => r.date > tx.date);
+                if (after.length > 0) rate = after[0].rate;
+              }
+            }
+            if (rate !== undefined && rate > 0) {
+              txForComparison.push({ ...tx, price: tx.price / rate, fees: tx.fees / rate });
+            }
           }
         }
 
