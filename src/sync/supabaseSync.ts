@@ -57,16 +57,30 @@ export async function flushQueue(): Promise<{ success: number; failed: number }>
   let success = 0;
   let failed = 0;
 
-  for (const entry of queue) {
-    try {
-      await processQueueEntry(entry);
-      await removeFromSyncQueue(entry.id);
-      success++;
-    } catch (err) {
-      console.error(`[sync] Failed to process queue entry ${entry.id}:`, err);
-      failed++;
+  const group = (table: string) => queue.filter((e) => e.tableName === table);
+  const processGroup = async (entries: SyncQueueEntry[]) => {
+    for (const entry of entries) {
+      try {
+        await processQueueEntry(entry);
+        await removeFromSyncQueue(entry.id);
+        success++;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const body = (err as Record<string, unknown>)?.details ?? (err as Record<string, unknown>)?.code ?? '';
+        console.error(`[sync] Failed ${entry.tableName} ${entry.operation} ${entry.data?.id}: ${msg}`, body);
+        failed++;
+      }
     }
-  }
+  };
+
+  await processGroup(group('accounts'));
+  await processGroup(group('households'));
+  await processGroup(group('participants'));
+  await processGroup(group('transactions'));
+  await processGroup(group('income_entries'));
+  await processGroup(group('expenses'));
+  await processGroup(group('expense_splits'));
+  await processGroup(group('preferences'));
 
   return { success, failed };
 }
@@ -83,7 +97,12 @@ async function processQueueEntry(entry: SyncQueueEntry): Promise<void> {
 
   switch (operation) {
     case 'INSERT':
-      await supabase.from(tableName).insert(dataWithUser);
+      if (tableName === 'preferences') {
+        const { key, value } = dataWithUser as Record<string, unknown>;
+        await supabase.from(tableName).upsert({ user_id: user.id, key, value }, { onConflict: 'user_id,key' });
+      } else {
+        await supabase.from(tableName).insert(dataWithUser);
+      }
       break;
 
     case 'UPDATE':
@@ -91,7 +110,11 @@ async function processQueueEntry(entry: SyncQueueEntry): Promise<void> {
       break;
 
     case 'DELETE':
-      await supabase.from(tableName).delete().eq('id', recordId);
+      if (tableName === 'preferences') {
+        await supabase.from(tableName).delete().eq('user_id', user.id).eq('key', data.key as string);
+      } else {
+        await supabase.from(tableName).delete().eq('id', recordId);
+      }
       break;
   }
 }
