@@ -225,14 +225,13 @@ export async function initialSyncExtended(): Promise<void> {
 }
 
 async function checkRemoteHasExtendedData(userId: string): Promise<boolean> {
-  const { count: incomeCount } = await supabase
-    .from('income_entries').select('*', { count: 'exact', head: true })
-    .eq('user_id', userId).is('deleted_at', null);
-  if ((incomeCount ?? 0) > 0) return true;
+  const { data: incomeCheck } = await supabase
+    .from('income_entries').select('id').eq('user_id', userId).is('deleted_at', null).limit(1);
+  if ((incomeCheck ?? []).length > 0) return true;
 
-  const { data: partData } = await supabase
+  const { data: partCheck } = await supabase
     .from('participants').select('id').eq('user_id', userId).limit(1);
-  if ((partData ?? []).length > 0) return true;
+  if ((partCheck ?? []).length > 0) return true;
 
   return false;
 }

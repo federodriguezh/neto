@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import { flushQueue, initialSync, initialSyncExtended, subscribeToChanges } from '../sync/supabaseSync';
 
 export function useSupabaseSync() {
@@ -23,11 +24,14 @@ export function useSupabaseSync() {
   useEffect(() => {
     if (!user) return;
 
-    initialSync().catch((err) => {
-      console.error('[sync] Initial sync failed:', err);
-    });
-    initialSyncExtended().catch((err) => {
-      console.error('[sync] Extended sync failed:', err);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return;
+      initialSync().catch((err) => {
+        console.error('[sync] Initial sync failed:', err);
+      });
+      initialSyncExtended().catch((err) => {
+        console.error('[sync] Extended sync failed:', err);
+      });
     });
 
     unsubscribeRef.current = subscribeToChanges(() => {
