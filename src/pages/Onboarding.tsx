@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Cloud, Smartphone, ArrowRight, FileSpreadsheet, BookOpen } from 'lucide-react';
+import { Download, Cloud, Smartphone, ArrowRight, FileSpreadsheet, BookOpen, DollarSign, Users } from 'lucide-react';
 import { useTranslation } from '../i18n';
 import { setPreference } from '../db';
 
@@ -39,10 +39,10 @@ export default function OnboardingPage() {
         <p className="text-sm text-slate-300 leading-relaxed">{t('onboarding.welcome')}</p>
       </div>
 
-      {/* Getting Started */}
+      {/* Portfolio Tracking */}
       <div className="rounded-xl bg-slate-800 p-5">
-        <h2 className="mb-3 text-lg font-semibold text-slate-200">{t('onboarding.gettingStarted.title')}</h2>
-        <p className="text-sm text-slate-300 leading-relaxed">{t('onboarding.gettingStarted.body')}</p>
+        <h2 className="mb-3 text-lg font-semibold text-slate-200">{t('onboarding.portfolio.title')}</h2>
+        <p className="text-sm text-slate-300 leading-relaxed">{t('onboarding.portfolio.body')}</p>
       </div>
 
       {/* CSV Import */}
@@ -65,37 +65,41 @@ export default function OnboardingPage() {
         </button>
       </div>
 
-      {/* Multi-Device Sync */}
+      {/* Income Tracking */}
+      <div className="rounded-xl bg-slate-800 p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <DollarSign size={18} className="text-emerald-400" />
+          <h2 className="text-lg font-semibold text-slate-200">{t('onboarding.income.title')}</h2>
+        </div>
+        <p className="text-sm text-slate-300 leading-relaxed">{t('onboarding.income.body')}</p>
+      </div>
+
+      {/* Shared Expenses */}
+      <div className="rounded-xl bg-slate-800 p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Users size={18} className="text-sky-400" />
+          <h2 className="text-lg font-semibold text-slate-200">{t('onboarding.households.title')}</h2>
+        </div>
+        <p className="text-sm text-slate-300 leading-relaxed mb-4">{t('onboarding.households.body')}</p>
+        <ul className="text-sm text-slate-400 space-y-2 ml-4">
+          <li>{t('onboarding.households.feature1')}</li>
+          <li>{t('onboarding.households.feature2')}</li>
+          <li>{t('onboarding.households.feature3')}</li>
+        </ul>
+      </div>
+
+      {/* Cloud Sync */}
       <div className="rounded-xl bg-slate-800 p-5">
         <div className="flex items-center gap-2 mb-3">
           <Cloud size={18} className="text-sky-400" />
           <h2 className="text-lg font-semibold text-slate-200">{t('onboarding.sync.title')}</h2>
         </div>
-        <p className="text-sm text-slate-300 leading-relaxed mb-4">{t('onboarding.sync.body')}</p>
-
-        <h3 className="mb-3 text-sm font-semibold text-slate-200">{t('onboarding.syncGuide.title')}</h3>
-        <div className="flex flex-col gap-4">
-          {[
-            { title: t('onboarding.syncGuide.step1.title'), body: t('onboarding.syncGuide.step1.body') },
-            { title: t('onboarding.syncGuide.step2.title'), body: t('onboarding.syncGuide.step2.body') },
-            { title: t('onboarding.syncGuide.step3.title'), body: t('onboarding.syncGuide.step3.body') },
-            { title: t('onboarding.syncGuide.step4.title'), body: t('onboarding.syncGuide.step4.body') },
-            { title: t('onboarding.syncGuide.step5.title'), body: t('onboarding.syncGuide.step5.body') },
-            { title: t('onboarding.syncGuide.step6.title'), body: t('onboarding.syncGuide.step6.body') },
-          ].map((step, i) => (
-            <div key={i} className="flex gap-3">
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-900/40 text-xs font-bold text-sky-400">
-                {i + 1}
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-slate-200">{step.title}</span>
-                <p className="text-sm text-slate-400 leading-relaxed">{step.body}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <p className="mt-4 text-xs text-slate-500">{t('onboarding.syncGuide.whyGithub')}</p>
+        <p className="text-sm text-slate-300 leading-relaxed mb-4">{t('onboarding.sync.supabase.body')}</p>
+        <ul className="text-sm text-slate-400 space-y-2 ml-4">
+          <li>{t('onboarding.sync.supabase.feature1')}</li>
+          <li>{t('onboarding.sync.supabase.feature2')}</li>
+          <li>{t('onboarding.sync.supabase.feature3')}</li>
+        </ul>
       </div>
 
       {/* Single Device */}

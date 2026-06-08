@@ -1,7 +1,9 @@
 import { useCallback } from 'react';
 import { Download, Upload, FileSpreadsheet } from 'lucide-react';
 import { db, addTransaction, updateAllRealizedPnl } from '../db';
-import type { Account, AssetClass, ExchangeRate, HistoricalPrice, Preference, Transaction, TransactionType } from '../types';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import type { Account, AssetClass, ExchangeRate, HistoricalPrice, Preference, Transaction, TransactionType, IncomeEntry, Expense } from '../types';
 import { useTranslation } from '../i18n';
 import { importCsv } from '../utils/csvImport';
 import { normalizeDate } from '../utils/date';
@@ -29,6 +31,7 @@ function escapeCsvCell(value: unknown): string {
 
 export default function ImportExport() {
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   const handleExport = useCallback(async () => {
     const accounts = await db.accounts.toArray();
@@ -38,7 +41,26 @@ export default function ImportExport() {
     const preferences = filterSafePreferences(await db.preferences.toArray());
     const exchangeRates = await db.exchangeRates.toArray();
 
-    const data = { accounts, transactions, historicalPrices, portfolioHistory, preferences, exchangeRates };
+    let incomeEntries: IncomeEntry[] = [];
+    let expenses: Expense[] = [];
+
+    if (user) {
+      const { data: incomeData } = await supabase
+        .from('income_entries')
+        .select('*')
+        .eq('user_id', user.id)
+        .is('deleted_at', null);
+      incomeEntries = incomeData || [];
+
+      const { data: expenseData } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('created_by', user.id)
+        .is('deleted_at', null);
+      expenses = expenseData || [];
+    }
+
+    const data = { accounts, transactions, historicalPrices, portfolioHistory, preferences, exchangeRates, incomeEntries, expenses };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -46,7 +68,7 @@ export default function ImportExport() {
     a.download = `neto-export-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, []);
+  }, [user]);
 
   const handleExportCsv = useCallback(async () => {
     const transactions = await db.transactions.toArray();
@@ -235,6 +257,35 @@ export default function ImportExport() {
 
       // Batch-compute realized P&L for all sells using FIFO
       await updateAllRealizedPnl();
+
+      // Import income entries if present
+      if (user && Array.isArray(data.incomeEntries) && data.incomeEntries.length > 0) {
+        const incomeToInsert = data.incomeEntries.map((entry: IncomeEntry) => ({
+          ...entry,
+          user_id: user.id,
+          id: undefined, // Let Supabase generate new IDs
+        }));
+        await supabase.from('income_entries').insert(incomeToInsert);
+      }
+
+      // Import expenses if present (only if user has a household)
+      if (user && Array.isArray(data.expenses) && data.expenses.length > 0) {
+        const { data: participantData } = await supabase
+          .from('participants')
+          .select('household_id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (participantData) {
+          const expensesToInsert = data.expenses.map((expense: Expense) => ({
+            ...expense,
+            household_id: participantData.household_id,
+            created_by: user.id,
+            id: undefined, // Let Supabase generate new IDs
+          }));
+          await supabase.from('expenses').insert(expensesToInsert);
+        }
+      }
 
       window.location.reload();
     } catch {
