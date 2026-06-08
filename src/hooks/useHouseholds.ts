@@ -36,13 +36,13 @@ export function useHouseholds() {
     if (!user) return;
     try {
       const { data: partRows } = await supabase
-        .from('participants')
-        .select('*')
-        .eq('user_id', user.id);
-      if (!partRows?.length) return;
-      const activeParts = partRows.filter((p) => p.deleted_at === null);
-
-      const householdIds = [...new Set(activeParts.map((p) => p.household_id))];
+        .rpc('get_participants_by_user', { p_user_id: user.id });
+      
+      const typedParts = (partRows as unknown as Array<{ household_id: string; deleted_at: string | null }>) || [];
+      if (!typedParts.length) return;
+      const householdIds = [...new Set(typedParts
+        .filter((p) => p.deleted_at === null)
+        .map((p) => p.household_id))];
       const { data: hhRows } = await supabase
         .from('households')
         .select('*')
@@ -65,11 +65,13 @@ export function useHouseholds() {
       setActiveHouseholdId(activeId);
 
       const { data: allParts } = await supabase
-        .from('participants')
-        .select('*')
-        .eq('household_id', activeId);
+        .rpc('get_participants_by_household', { p_household_id: activeId });
+      const typedAllParts = (allParts as unknown as Array<{
+        id: string; user_id: string | null; household_id: string; name: string;
+        income_ratio: number; created_at: string; updated_at: string; deleted_at: string | null;
+      }>) || [];
       setParticipants(
-        (allParts || []).filter((p) => p.deleted_at === null).map((p) => ({
+        typedAllParts.map((p) => ({
           ...p,
           householdId: p.household_id,
           userId: p.user_id ?? undefined,
@@ -99,11 +101,13 @@ export function useHouseholds() {
     if (hh) {
       try {
         const { data: allParts } = await supabase
-          .from('participants')
-          .select('*')
-          .eq('household_id', id);
+          .rpc('get_participants_by_household', { p_household_id: id });
+        const typedAllParts = (allParts as unknown as Array<{
+          id: string; user_id: string | null; household_id: string; name: string;
+          income_ratio: number; created_at: string; updated_at: string; deleted_at: string | null;
+        }>) || [];
         setParticipants(
-          (allParts || []).filter((p) => p.deleted_at === null).map((p) => ({
+          typedAllParts.map((p) => ({
             ...p,
             householdId: p.household_id,
             userId: p.user_id ?? undefined,
