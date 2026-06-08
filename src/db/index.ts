@@ -8,6 +8,11 @@ import type {
   Preference,
   ExchangeRate,
   SyncQueueEntry,
+  IncomeEntry,
+  Household,
+  Participant,
+  Expense,
+  ExpenseSplit,
 } from './schema';
 import { normalizeDate } from '../utils/date';
 import { enqueueAccountChange, enqueueTransactionChange, enqueuePreferenceChange } from '../sync/offlineQueue';
@@ -23,6 +28,11 @@ interface NetoDatabase extends Dexie {
   preferences: Table<Preference, string>;
   exchangeRates: Table<ExchangeRate, [string, string]>;
   syncQueue: Table<SyncQueueEntry, string>;
+  incomeEntries: EntityTable<IncomeEntry, 'id'>;
+  expenses: EntityTable<Expense, 'id'>;
+  expenseSplits: EntityTable<ExpenseSplit, 'id'>;
+  households: EntityTable<Household, 'id'>;
+  participants: EntityTable<Participant, 'id'>;
 }
 
 const db = new Dexie(DB_NAME) as NetoDatabase;
@@ -118,6 +128,22 @@ db.version(5).stores({
   preferences: 'key',
   exchangeRates: '[type+date], type, date',
   syncQueue: 'id, tableName, timestamp',
+});
+
+db.version(6).stores({
+  accounts: 'id, name, createdAt',
+  transactions: 'id, date, accountId, symbol, assetClass, type',
+  historicalPrices: '[symbol+date], symbol, date, close',
+  portfolioHistory: 'date, value',
+  priceCache: 'symbol, price, timestamp',
+  preferences: 'key',
+  exchangeRates: '[type+date], type, date',
+  syncQueue: 'id, tableName, timestamp',
+  incomeEntries: 'id, date, category, participantId',
+  expenses: 'id, date, category, paidBy, householdId',
+  expenseSplits: 'id, expenseId, participantId, settled',
+  households: 'id, name, inviteCode',
+  participants: 'id, name, householdId',
 });
 
 export { db };
@@ -294,4 +320,127 @@ export async function removeFromSyncQueue(id: string): Promise<void> {
 
 export async function clearSyncQueue(): Promise<void> {
   await db.syncQueue.clear();
+}
+
+// ── Income Entries ──
+
+export async function getLocalIncomeEntries(): Promise<IncomeEntry[]> {
+  const all = await db.incomeEntries.filter((e) => e.deletedAt === undefined).toArray();
+  return all.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export async function addLocalIncomeEntry(entry: Omit<IncomeEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<IncomeEntry> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const full: IncomeEntry = { ...entry, id, createdAt: now, updatedAt: now };
+  await db.incomeEntries.add(full);
+  return full;
+}
+
+export async function updateLocalIncomeEntry(id: string, changes: Partial<IncomeEntry>): Promise<void> {
+  await db.incomeEntries.update(id, { ...changes, updatedAt: new Date().toISOString() });
+}
+
+export async function deleteLocalIncomeEntry(id: string): Promise<void> {
+  const now = new Date().toISOString();
+  await db.incomeEntries.update(id, { deletedAt: now, updatedAt: now });
+}
+
+// ── Households ──
+
+export async function getLocalHousehold(): Promise<Household | undefined> {
+  return db.households.toCollection().first();
+}
+
+export async function addLocalHousehold(household: Omit<Household, 'id' | 'createdAt' | 'updatedAt'>): Promise<Household> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const full: Household = { ...household, id, createdAt: now, updatedAt: now };
+  await db.households.add(full);
+  return full;
+}
+
+export async function updateLocalHousehold(id: string, changes: Partial<Household>): Promise<void> {
+  await db.households.update(id, { ...changes, updatedAt: new Date().toISOString() });
+}
+
+export async function clearLocalHousehold(): Promise<void> {
+  await db.households.clear();
+}
+
+// ── Participants ──
+
+export async function getLocalParticipants(): Promise<Participant[]> {
+  return db.participants.filter((p) => p.deletedAt === undefined).toArray();
+}
+
+export async function addLocalParticipant(participant: Omit<Participant, 'id' | 'createdAt' | 'updatedAt'>): Promise<Participant> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const full: Participant = { ...participant, id, createdAt: now, updatedAt: now };
+  await db.participants.add(full);
+  return full;
+}
+
+export async function updateLocalParticipant(id: string, changes: Partial<Participant>): Promise<void> {
+  await db.participants.update(id, { ...changes, updatedAt: new Date().toISOString() });
+}
+
+export async function deleteLocalParticipant(id: string): Promise<void> {
+  const now = new Date().toISOString();
+  await db.participants.update(id, { deletedAt: now, updatedAt: now });
+}
+
+export async function clearLocalParticipants(): Promise<void> {
+  await db.participants.clear();
+}
+
+// ── Expenses ──
+
+export async function getLocalExpenses(): Promise<Expense[]> {
+  const all = await db.expenses.filter((e) => e.deletedAt === undefined).toArray();
+  return all.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export async function addLocalExpense(expense: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>): Promise<Expense> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const full: Expense = { ...expense, id, createdAt: now, updatedAt: now };
+  await db.expenses.add(full);
+  return full;
+}
+
+export async function updateLocalExpense(id: string, changes: Partial<Expense>): Promise<void> {
+  await db.expenses.update(id, { ...changes, updatedAt: new Date().toISOString() });
+}
+
+export async function deleteLocalExpense(id: string): Promise<void> {
+  const now = new Date().toISOString();
+  await db.expenses.update(id, { deletedAt: now, updatedAt: now });
+}
+
+// ── Expense Splits ──
+
+export async function getLocalExpenseSplits(): Promise<ExpenseSplit[]> {
+  return db.expenseSplits.toArray();
+}
+
+export async function addLocalExpenseSplit(split: Omit<ExpenseSplit, 'id' | 'createdAt' | 'updatedAt'>): Promise<ExpenseSplit> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const full: ExpenseSplit = { ...split, id, createdAt: now, updatedAt: now };
+  await db.expenseSplits.add(full);
+  return full;
+}
+
+export async function updateLocalExpenseSplit(id: string, changes: Partial<ExpenseSplit>): Promise<void> {
+  await db.expenseSplits.update(id, { ...changes, updatedAt: new Date().toISOString() });
+}
+
+export async function deleteLocalExpenseSplit(id: string): Promise<void> {
+  await db.expenseSplits.delete(id);
+}
+
+export async function clearLocalExpenseSplits(): Promise<void> {
+  await db.expenseSplits.clear();
 }

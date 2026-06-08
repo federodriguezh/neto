@@ -293,6 +293,24 @@ export const en: Record<string, string> = {
   'onboarding.singleDevice.body': 'If you only use one device, you do not need to set up sync. Your data is stored locally in this browser. You can still export your data as JSON or CSV anytime.',
   'onboarding.dismiss': 'Got it, take me to the app',
 
+  // Auth
+  'auth.signIn': 'Sign In',
+  'auth.signInLoading': 'Signing in...',
+  'auth.signUp': 'Create Account',
+  'auth.signUpLoading': 'Creating account...',
+  'auth.email': 'Email',
+  'auth.emailPlaceholder': 'you@email.com',
+  'auth.password': 'Password',
+  'auth.passwordPlaceholder': '••••••••',
+  'auth.confirmPassword': 'Confirm Password',
+  'auth.noAccount': "Don't have an account?",
+  'auth.hasAccount': 'Already have an account?',
+  'auth.createAccount': 'Create account',
+  'auth.passwordsDontMatch': 'Passwords do not match',
+  'auth.passwordTooShort': 'Password must be at least 6 characters',
+  'auth.accountCreated': 'Account created!',
+  'auth.redirectingToLogin': 'Redirecting to login in a few seconds...',
+
   // Misc
   'misc.yes': 'Yes',
   'misc.no': 'No',
@@ -595,6 +613,24 @@ export const es: Record<string, string> = {
   'onboarding.singleDevice.title': 'Un Solo Dispositivo',
   'onboarding.singleDevice.body': 'Si solo usas un dispositivo, no necesitas configurar la sincronización. Tus datos se almacenan localmente en este navegador. Aún puedes exportar tus datos como JSON o CSV en cualquier momento.',
   'onboarding.dismiss': 'Entendido, llevarme a la app',
+
+  // Auth
+  'auth.signIn': 'Iniciar sesión',
+  'auth.signInLoading': 'Iniciando sesión...',
+  'auth.signUp': 'Crear cuenta',
+  'auth.signUpLoading': 'Creando cuenta...',
+  'auth.email': 'Email',
+  'auth.emailPlaceholder': 'tu@email.com',
+  'auth.password': 'Contraseña',
+  'auth.passwordPlaceholder': '••••••••',
+  'auth.confirmPassword': 'Confirmar contraseña',
+  'auth.noAccount': '¿No tenés cuenta?',
+  'auth.hasAccount': '¿Ya tenés cuenta?',
+  'auth.createAccount': 'Crear cuenta',
+  'auth.passwordsDontMatch': 'Las contraseñas no coinciden',
+  'auth.passwordTooShort': 'La contraseña debe tener al menos 6 caracteres',
+  'auth.accountCreated': '¡Cuenta creada!',
+  'auth.redirectingToLogin': 'Te redirigiremos al login en unos segundos...',
 
   // Misc
   'misc.yes': 'Sí',

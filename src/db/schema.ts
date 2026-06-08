@@ -7,6 +7,11 @@ import type {
   Preference,
   ExchangeRate,
   SyncQueueEntry,
+  IncomeEntry,
+  Household,
+  Participant,
+  Expense,
+  ExpenseSplit,
 } from '../types';
 
 export type {
@@ -18,4 +23,9 @@ export type {
   Preference,
   ExchangeRate,
   SyncQueueEntry,
+  IncomeEntry,
+  Household,
+  Participant,
+  Expense,
+  ExpenseSplit,
 };

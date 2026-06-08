@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { flushQueue, initialSync, subscribeToChanges } from '../sync/supabaseSync';
+import { flushQueue, initialSync, initialSyncExtended, subscribeToChanges } from '../sync/supabaseSync';
 
 export function useSupabaseSync() {
   const { user } = useAuth();
@@ -26,9 +26,13 @@ export function useSupabaseSync() {
     initialSync().catch((err) => {
       console.error('[sync] Initial sync failed:', err);
     });
+    initialSyncExtended().catch((err) => {
+      console.error('[sync] Extended sync failed:', err);
+    });
 
     unsubscribeRef.current = subscribeToChanges(() => {
-      sync();
+      initialSync().catch((err) => console.error('[sync] Realtime sync failed:', err));
+      initialSyncExtended().catch((err) => console.error('[sync] Realtime extended sync failed:', err));
     });
 
     const handleOnline = () => {

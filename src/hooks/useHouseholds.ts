@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  getLocalHousehold, addLocalHousehold, updateLocalHousehold,
+  getLocalParticipants, addLocalParticipant, updateLocalParticipant, deleteLocalParticipant,
+} from '../db';
+import { enqueueHouseholdChange, enqueueParticipantChange } from '../sync/offlineQueue';
 import type { Household, Participant } from '../types';
 
 export function useHouseholds() {
@@ -8,230 +13,153 @@ export function useHouseholds() {
   const [household, setHousehold] = useState<Household | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchHousehold = useCallback(async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    // Find participant for this user
-    const { data: participantData, error: participantError } = await supabase
-      .from('participants')
-      .select('*')
-      .eq('user_id', user.id)
-      .is('deleted_at', null)
-      .single();
-    
-    if (participantError || !participantData) {
-      setHousehold(null);
-      setParticipants([]);
-      setLoading(false);
-      return;
+  const loadLocal = useCallback(async () => {
+    const hh = await getLocalHousehold();
+    const parts = await getLocalParticipants();
+    if (hh) {
+      setHousehold(hh);
+      setParticipants(parts);
     }
-    
-    // Fetch household
-    const { data: householdData, error: householdError } = await supabase
-      .from('households')
-      .select('*')
-      .eq('id', participantData.household_id)
-      .single();
-    
-    if (householdError) {
-      setError(householdError.message);
-      setLoading(false);
-      return;
-    }
-    
-    setHousehold(householdData);
-    
-    // Fetch all participants
-    const { data: allParticipants, error: participantsError } = await supabase
-      .from('participants')
-      .select('*')
-      .eq('household_id', householdData.id)
-      .is('deleted_at', null);
-    
-    if (participantsError) {
-      setError(participantsError.message);
-    } else {
-      setParticipants(allParticipants || []);
-    }
-    
     setLoading(false);
+  }, []);
+
+  const fetchFromSupabase = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data: partData } = await supabase
+        .from('participants')
+        .select('*')
+        .eq('user_id', user.id)
+        .is('deleted_at', null)
+        .single();
+      if (!partData) return;
+
+      const { data: hhData } = await supabase
+        .from('households')
+        .select('*')
+        .eq('id', partData.household_id)
+        .single();
+      if (!hhData) return;
+
+      const { data: allParts } = await supabase
+        .from('participants')
+        .select('*')
+        .eq('household_id', hhData.id)
+        .is('deleted_at', null);
+
+      setHousehold(hhData);
+      setParticipants(allParts || []);
+    } catch { /* ignore, local data already shown */ }
   }, [user]);
 
-  useEffect(() => {
-    fetchHousehold();
-  }, [fetchHousehold]);
+  useEffect(() => { loadLocal(); }, [loadLocal]);
+  useEffect(() => { fetchFromSupabase(); }, [fetchFromSupabase]);
 
   const createHousehold = async (name: string, participantName: string) => {
     if (!user) throw new Error('No user');
-    
-    // Create household
-    const { data: householdData, error: householdError } = await supabase
-      .from('households')
-      .insert({ name })
-      .select()
-      .single();
-    
-    if (householdError) throw householdError;
-    
-    // Create first participant
-    const { error: participantError } = await supabase
-      .from('participants')
-      .insert({
-        household_id: householdData.id,
-        user_id: user.id,
-        name: participantName,
-        income_ratio: 0.5,
+
+    const hh = await addLocalHousehold({ name, inviteCode: '', splitMethod: 'proportional' });
+    const part = await addLocalParticipant({ name: participantName, householdId: hh.id, userId: user.id, incomeRatio: 0.5 });
+
+    setHousehold(hh);
+    setParticipants([part]);
+    enqueueHouseholdChange('INSERT', hh).catch(() => {});
+    enqueueParticipantChange('INSERT', part).catch(() => {});
+
+    try {
+      const { data: supabaseHh } = await supabase.from('households').insert({ name }).select().single();
+      if (supabaseHh) {
+        await updateLocalHousehold(hh.id, { id: supabaseHh.id, inviteCode: supabaseHh.invite_code });
+        setHousehold((prev) => prev ? { ...prev, id: supabaseHh.id, inviteCode: supabaseHh.invite_code } : null);
+      }
+      await supabase.from('participants').insert({
+        user_id: user.id, name: participantName,
+        household_id: supabaseHh?.id ?? hh.id, income_ratio: 0.5,
       });
-    
-    if (participantError) throw participantError;
-    
-    await fetchHousehold();
+    } catch { /* synced later */ }
   };
 
   const joinHousehold = async (inviteCode: string, participantName: string) => {
     if (!user) throw new Error('No user');
-    
-    // Find household by invite code
-    const { data: householdData, error: householdError } = await supabase
-      .from('households')
-      .select('*')
-      .eq('invite_code', inviteCode)
-      .single();
-    
-    if (householdError) throw new Error('Invalid invite code');
-    
-    // Check if user is already a participant
-    const { data: existingParticipant } = await supabase
-      .from('participants')
-      .select('id')
-      .eq('household_id', householdData.id)
-      .eq('user_id', user.id)
-      .is('deleted_at', null)
-      .single();
-    
-    if (existingParticipant) {
-      throw new Error('You are already a member of this household');
-    }
-    
-    // Add participant
-    const { error: participantError } = await supabase
-      .from('participants')
-      .insert({
-        household_id: householdData.id,
-        user_id: user.id,
-        name: participantName,
-        income_ratio: 0.5,
-      });
-    
-    if (participantError) throw participantError;
-    
-    await fetchHousehold();
+    const { data: hhData, error: hhError } = await supabase
+      .from('households').select('*').eq('invite_code', inviteCode).single();
+    if (hhError || !hhData) throw new Error('Invalid invite code');
+
+    const { data: existing } = await supabase
+      .from('participants').select('id')
+      .eq('household_id', hhData.id).eq('user_id', user.id).is('deleted_at', null).single();
+    if (existing) throw new Error('Already a member');
+
+    await supabase.from('participants').insert({ household_id: hhData.id, user_id: user.id, name: participantName, income_ratio: 0.5 });
+
+    const localHh = await addLocalHousehold(hhData);
+    const part = await addLocalParticipant({ name: participantName, householdId: hhData.id, userId: user.id, incomeRatio: 0.5 });
+    setHousehold(localHh);
+    setParticipants([part]);
   };
 
   const updateHousehold = async (updates: Partial<Household>) => {
-    if (!household) throw new Error('No household');
-    
-    const { error: updateError } = await supabase
-      .from('households')
-      .update(updates)
-      .eq('id', household.id);
-    
-    if (updateError) throw updateError;
-    await fetchHousehold();
+    if (!household) return;
+    await updateLocalHousehold(household.id, updates);
+    setHousehold((prev) => prev ? { ...prev, ...updates } : null);
+    enqueueHouseholdChange('UPDATE', { ...household, ...updates }).catch(() => {});
+    try { await supabase.from('households').update(updates).eq('id', household.id); } catch {}
   };
 
   const addParticipant = async (name: string) => {
-    if (!household) throw new Error('No household');
-    
-    const { error: insertError } = await supabase
-      .from('participants')
-      .insert({
-        household_id: household.id,
-        name,
-        income_ratio: 0,
-      });
-    
-    if (insertError) throw insertError;
-    await fetchHousehold();
+    if (!household) return;
+    const part = await addLocalParticipant({ name, householdId: household.id, incomeRatio: 0 });
+    setParticipants((prev) => [...prev, part]);
+    enqueueParticipantChange('INSERT', part).catch(() => {});
+    try { await supabase.from('participants').insert({ household_id: household.id, name, income_ratio: 0 }); } catch {}
   };
 
   const updateParticipant = async (id: string, updates: Partial<Participant>) => {
-    const { error: updateError } = await supabase
-      .from('participants')
-      .update(updates)
-      .eq('id', id);
-    
-    if (updateError) throw updateError;
-    await fetchHousehold();
+    await updateLocalParticipant(id, updates);
+    setParticipants((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+    const current = participants.find((p) => p.id === id);
+    if (current) enqueueParticipantChange('UPDATE', { ...current, ...updates }).catch(() => {});
+    try { await supabase.from('participants').update(updates).eq('id', id); } catch {}
   };
 
   const removeParticipant = async (id: string) => {
-    const { error: deleteError } = await supabase
-      .from('participants')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id);
-    
-    if (deleteError) throw deleteError;
-    await fetchHousehold();
+    await deleteLocalParticipant(id);
+    setParticipants((prev) => prev.filter((p) => p.id !== id));
+    const current = participants.find((p) => p.id === id);
+    if (current) enqueueParticipantChange('DELETE', current).catch(() => {});
+    try { await supabase.from('participants').update({ deleted_at: new Date().toISOString() }).eq('id', id); } catch {}
   };
 
   const recalculateIncomeRatios = async () => {
     if (!household || !user) return;
-    
-    // Get all participants
-    const { data: allParticipants } = await supabase
-      .from('participants')
-      .select('id')
-      .eq('household_id', household.id)
-      .is('deleted_at', null);
-    
-    if (!allParticipants || allParticipants.length === 0) return;
-    
-    // Calculate total income for each participant
-    const incomes: Record<string, number> = {};
-    let totalIncome = 0;
-    
-    for (const p of allParticipants) {
-      const { data: incomeData } = await supabase
-        .from('income_entries')
-        .select('amount')
-        .eq('participant_id', p.id)
-        .is('deleted_at', null);
-      
-      const participantIncome = (incomeData || []).reduce((sum, e) => sum + e.amount, 0);
-      incomes[p.id] = participantIncome;
-      totalIncome += participantIncome;
-    }
-    
-    // Update ratios
-    for (const p of allParticipants) {
-      const ratio = totalIncome > 0 ? incomes[p.id] / totalIncome : 1 / allParticipants.length;
-      await supabase
-        .from('participants')
-        .update({ income_ratio: ratio })
-        .eq('id', p.id);
-    }
-    
-    await fetchHousehold();
+    try {
+      const { data: allParts } = await supabase.from('participants')
+        .select('id').eq('household_id', household.id).is('deleted_at', null);
+      if (!allParts?.length) return;
+
+      const incomes: Record<string, number> = {};
+      let total = 0;
+      for (const p of allParts) {
+        const { data: incomeData } = await supabase.from('income_entries')
+          .select('amount').eq('participant_id', p.id).is('deleted_at', null);
+        const sum = (incomeData || []).reduce((s, e) => s + e.amount, 0);
+        incomes[p.id] = sum;
+        total += sum;
+      }
+      for (const p of allParts) {
+        const ratio = total > 0 ? incomes[p.id] / total : 1 / allParts.length;
+        await updateLocalParticipant(p.id, { incomeRatio: ratio });
+        setParticipants((prev) => prev.map((pr) => (pr.id === p.id ? { ...pr, incomeRatio: ratio } : pr)));
+        try { await supabase.from('participants').update({ income_ratio: ratio }).eq('id', p.id); } catch {}
+      }
+    } catch {}
   };
 
   return {
-    household,
-    participants,
-    loading,
-    error,
-    createHousehold,
-    joinHousehold,
-    updateHousehold,
-    addParticipant,
-    updateParticipant,
-    removeParticipant,
-    recalculateIncomeRatios,
-    refetch: fetchHousehold,
+    household, participants, loading, error: null,
+    createHousehold, joinHousehold, updateHousehold,
+    addParticipant, updateParticipant, removeParticipant,
+    recalculateIncomeRatios, refetch: loadLocal,
   };
 }

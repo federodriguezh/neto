@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from '../i18n';
 
 export default function Login() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export default function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-900 p-4">
       <div className="w-full max-w-md rounded-xl bg-slate-800 p-8">
-        <h1 className="mb-6 text-2xl font-bold text-slate-100">Iniciar sesión</h1>
+        <h1 className="mb-6 text-2xl font-bold text-slate-100">{t('auth.signIn')}</h1>
 
         {error && (
           <div className="mb-4 rounded-lg bg-rose-900/30 border border-rose-800 p-3 text-sm text-rose-300">
@@ -39,7 +41,7 @@ export default function Login() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <label htmlFor="email" className="text-sm font-medium text-slate-400">
-              Email
+              {t('auth.email')}
             </label>
             <input
               id="email"
@@ -48,13 +50,13 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700 focus:border-emerald-500 focus:outline-none"
-              placeholder="tu@email.com"
+              placeholder={t('auth.emailPlaceholder')}
             />
           </div>
 
           <div className="flex flex-col gap-2">
             <label htmlFor="password" className="text-sm font-medium text-slate-400">
-              Contraseña
+              {t('auth.password')}
             </label>
             <input
               id="password"
@@ -64,7 +66,7 @@ export default function Login() {
               required
               minLength={6}
               className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700 focus:border-emerald-500 focus:outline-none"
-              placeholder="••••••••"
+              placeholder={t('auth.passwordPlaceholder')}
             />
           </div>
 
@@ -73,14 +75,14 @@ export default function Login() {
             disabled={loading}
             className="mt-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+            {loading ? t('auth.signInLoading') : t('auth.signIn')}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-400">
-          ¿No tenés cuenta?{' '}
+          {t('auth.noAccount')}{' '}
           <Link to="/signup" className="text-emerald-400 hover:text-emerald-300">
-            Crear cuenta
+            {t('auth.createAccount')}
           </Link>
         </p>
       </div>

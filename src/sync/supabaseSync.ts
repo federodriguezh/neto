@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { db, getSyncQueue, removeFromSyncQueue, clearSyncQueue } from '../db';
-import type { SyncQueueEntry } from '../types';
+import type { SyncQueueEntry, IncomeCategory } from '../types';
 
 export async function flushQueue(): Promise<{ success: number; failed: number }> {
   const queue = await getSyncQueue();
@@ -156,24 +156,96 @@ export async function initialSync(): Promise<void> {
   await clearSyncQueue();
 }
 
+export async function initialSyncExtended(): Promise<void> {
+  if (!supabase) return;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  // Sync income entries
+  const { data: incomeData } = await supabase.from('income_entries')
+    .select('*').eq('user_id', user.id).is('deleted_at', null);
+  if (incomeData) {
+    for (const e of incomeData) {
+      await db.incomeEntries.put({
+        id: e.id, date: e.date, source: e.source, category: e.category as IncomeCategory,
+        amount: e.amount, currency: e.currency, participantId: e.participant_id ?? undefined,
+        notes: e.notes ?? undefined, createdAt: e.created_at, updatedAt: e.updated_at,
+        deletedAt: e.deleted_at ?? undefined,
+      });
+    }
+  }
+
+  // Sync household + participants
+  const { data: partData } = await supabase.from('participants')
+    .select('*').eq('user_id', user.id).is('deleted_at', null).single();
+  if (partData) {
+    const { data: hhData } = await supabase.from('households')
+      .select('*').eq('id', partData.household_id).single();
+    if (hhData) {
+      await db.households.put({
+        id: hhData.id, name: hhData.name, inviteCode: hhData.invite_code,
+        splitMethod: hhData.split_method, fixedSplit: hhData.fixed_split ?? undefined,
+        createdAt: hhData.created_at, updatedAt: hhData.updated_at,
+      });
+    }
+    const { data: allParts } = await supabase.from('participants')
+      .select('*').eq('household_id', partData.household_id).is('deleted_at', null);
+    if (allParts) {
+      for (const p of allParts) {
+        await db.participants.put({
+          id: p.id, name: p.name, householdId: p.household_id,
+          userId: p.user_id ?? undefined, incomeRatio: p.income_ratio,
+          createdAt: p.created_at, updatedAt: p.updated_at,
+          deletedAt: p.deleted_at ?? undefined,
+        });
+      }
+    }
+
+    // Sync expenses + splits
+    const { data: expData } = await supabase.from('expenses')
+      .select('*').eq('household_id', partData.household_id).is('deleted_at', null);
+    if (expData) {
+      const ids = expData.map((e) => e.id);
+      const { data: splitData } = ids.length > 0
+        ? await supabase.from('expense_splits').select('*').in('expense_id', ids)
+        : { data: [] };
+
+      await db.expenses.clear();
+      for (const e of expData) {
+        await db.expenses.put({
+          id: e.id, date: e.date, description: e.description, category: e.category,
+          totalAmount: e.total_amount, currency: e.currency, paidBy: e.paid_by,
+          splitMethod: e.split_method, fixedSplit: e.fixed_split ?? undefined,
+          createdAt: e.created_at, updatedAt: e.updated_at,
+          deletedAt: e.deleted_at ?? undefined,
+        });
+      }
+      await db.expenseSplits.clear();
+      if (splitData) {
+        for (const s of splitData) {
+          await db.expenseSplits.put({
+            id: s.id, expenseId: s.expense_id, participantId: s.participant_id,
+            share: s.share, amount: s.amount, settled: s.settled,
+            settledAt: s.settled_at ?? undefined,
+            createdAt: s.created_at, updatedAt: s.updated_at,
+          });
+        }
+      }
+    }
+  }
+}
+
 export function subscribeToChanges(onChange: () => void): () => void {
   const channel = supabase
     .channel('db-changes')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'accounts' },
-      () => onChange()
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'transactions' },
-      () => onChange()
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'preferences' },
-      () => onChange()
-    )
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'accounts' }, () => onChange())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => onChange())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'preferences' }, () => onChange())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'income_entries' }, () => onChange())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'households' }, () => onChange())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'participants' }, () => onChange())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => onChange())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'expense_splits' }, () => onChange())
     .subscribe();
 
   return () => {
