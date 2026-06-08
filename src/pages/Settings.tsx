@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useTranslation } from '../i18n';
 import { db, clearPriceCache, clearExchangeRates, setPreference } from '../db';
+import { supabase } from '../lib/supabase';
 import ImportExport from '../components/ImportExport';
 
 export default function SettingsPage() {
@@ -43,6 +44,19 @@ export default function SettingsPage() {
 
   const handleClearAll = async () => {
     if (confirm(t('settings.clearAll') + ' — ' + t('misc.confirm'))) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await Promise.all([
+            supabase.from('accounts').delete().eq('user_id', user.id),
+            supabase.from('transactions').delete().eq('user_id', user.id),
+            supabase.from('income_entries').delete().eq('user_id', user.id),
+            supabase.from('preferences').delete().eq('user_id', user.id),
+            supabase.from('portfolio_history').delete().eq('user_id', user.id),
+            supabase.from('sync_queue').delete().eq('user_id', user.id),
+          ]);
+        }
+      } catch { /* ignore network errors */ }
       await db.delete();
       localStorage.removeItem('neto-sync-passphrase');
       localStorage.removeItem('neto-pre-v4-backup');

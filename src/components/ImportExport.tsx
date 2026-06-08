@@ -301,9 +301,11 @@ export default function ImportExport() {
     try {
       const result = await importCsv(text);
       if (result.transactions.length > 0) {
-        for (const tx of result.transactions) {
-          await addTransaction(tx);
-        }
+        await db.transaction('rw', db.transactions, async () => {
+          for (const tx of result.transactions) {
+            await addTransaction(tx);
+          }
+        });
         await updateAllRealizedPnl();
       }
       const msg = t('import.csv.success', { count: String(result.count), errors: String(result.errors.length) });

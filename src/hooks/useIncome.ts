@@ -41,6 +41,13 @@ export function useIncome() {
     fetchFromSupabase();
   }, [fetchFromSupabase]);
 
+  useEffect(() => {
+    const id = setInterval(() => { fetchFromSupabase().catch(() => {}); }, 60000);
+    const onFocus = () => { fetchFromSupabase().catch(() => {}); };
+    window.addEventListener('focus', onFocus);
+    return () => { clearInterval(id); window.removeEventListener('focus', onFocus); };
+  }, [fetchFromSupabase]);
+
   const addEntry = async (entry: Omit<IncomeEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
     const full = await addLocalIncomeEntry(entry);
     setEntries((prev) => [full, ...prev]);

@@ -42,6 +42,13 @@ export function useExpenses() {
   useEffect(() => { loadLocal(); }, [loadLocal]);
   useEffect(() => { fetchFromSupabase(); }, [fetchFromSupabase]);
 
+  useEffect(() => {
+    const id = setInterval(() => { fetchFromSupabase().catch(() => {}); }, 60000);
+    const onFocus = () => { fetchFromSupabase().catch(() => {}); };
+    window.addEventListener('focus', onFocus);
+    return () => { clearInterval(id); window.removeEventListener('focus', onFocus); };
+  }, [fetchFromSupabase]);
+
   const calculateSplits = (
     totalAmount: number,
     splitMethod: 'proportional' | 'fixed',

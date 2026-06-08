@@ -56,6 +56,13 @@ export function useHouseholds() {
   useEffect(() => { loadLocal(); }, [loadLocal]);
   useEffect(() => { fetchFromSupabase(); }, [fetchFromSupabase]);
 
+  useEffect(() => {
+    const id = setInterval(() => { fetchFromSupabase().catch(() => {}); }, 60000);
+    const onFocus = () => { fetchFromSupabase().catch(() => {}); };
+    window.addEventListener('focus', onFocus);
+    return () => { clearInterval(id); window.removeEventListener('focus', onFocus); };
+  }, [fetchFromSupabase]);
+
   const createHousehold = async (name: string, participantName: string) => {
     if (!user) throw new Error('No user');
 
@@ -109,10 +116,15 @@ export function useHouseholds() {
 
   const addParticipant = async (name: string) => {
     if (!household) return;
-    const part = await addLocalParticipant({ name, householdId: household.id, incomeRatio: 0 });
+    const part = await addLocalParticipant({ name, householdId: household.id, incomeRatio: 0, userId: user?.id });
     setParticipants((prev) => [...prev, part]);
     enqueueParticipantChange('INSERT', part).catch(() => {});
-    try { await supabase.from('participants').insert({ household_id: household.id, name, income_ratio: 0 }); } catch {}
+    try {
+      await supabase.from('participants').insert({
+        household_id: household.id, name, income_ratio: 0,
+        user_id: user?.id ?? null,
+      });
+    } catch {}
   };
 
   const updateParticipant = async (id: string, updates: Partial<Participant>) => {
