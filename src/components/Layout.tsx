@@ -24,7 +24,7 @@ export default function Layout({ showOnboarding }: LayoutProps) {
     { to: '/households', label: t('nav.households'), icon: Users },
   ];
 
-  if (household) {
+  if (household?.id) {
     navItems.push({ to: '/expenses', label: t('nav.expenses'), icon: Receipt });
     navItems.push({ to: '/balances', label: t('nav.balances'), icon: Scale });
   }

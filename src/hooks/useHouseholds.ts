@@ -16,7 +16,9 @@ export function useHouseholds() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const activeHousehold = households.find((h) => h.id === activeHouseholdId) ?? households[0] ?? null;
+  const activeHousehold = households.find((h) => h.id === activeHouseholdId)
+    ?? households.find((h) => Boolean(h.id))
+    ?? null;
 
   const loadLocal = useCallback(async () => {
     const all = await getLocalHousehold();

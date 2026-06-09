@@ -29,7 +29,7 @@ export function useExpenses() {
     try {
       let query = supabase.from('expenses')
         .select('*').order('date', { ascending: false });
-      if (household) {
+      if (household?.id) {
         query = query.eq('household_id', household.id);
       } else {
         query = query.is('household_id', null);
