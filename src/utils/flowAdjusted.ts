@@ -21,11 +21,13 @@ export function computeFlowAdjustedIndex(
   const cfMap = new Map<string, number>();
   for (const tx of transactions) {
     const existing = cfMap.get(tx.date) ?? 0;
+    const price = tx.priceArs ?? tx.price;
+    const fees = tx.feesArs ?? tx.fees;
     if (tx.type === 'buy') {
-      const buyOutflow = tx.quantity * tx.price + tx.fees;
+      const buyOutflow = tx.quantity * price + fees;
       cfMap.set(tx.date, existing + buyOutflow);
     } else {
-      const sellInflow = tx.quantity * tx.price - tx.fees;
+      const sellInflow = tx.quantity * price - fees;
       cfMap.set(tx.date, existing - sellInflow);
     }
   }

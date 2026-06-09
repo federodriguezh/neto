@@ -69,8 +69,9 @@ function mergeTransactionPrices(
 
   for (const tx of transactions) {
     if (tx.symbol !== symbol) continue;
+    const close = tx.priceArs ?? tx.price;
     if (!priceMap.has(tx.date)) {
-      priceMap.set(tx.date, { symbol, date: tx.date, open: tx.price, close: tx.price });
+      priceMap.set(tx.date, { symbol, date: tx.date, open: close, close });
     }
   }
 

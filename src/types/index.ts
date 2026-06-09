@@ -23,6 +23,8 @@ export interface Transaction {
   price: number;
   fees: number;
   currency: string;
+  priceArs?: number;
+  feesArs?: number;
   realizedPnl?: number;
   updatedAt: string;
   createdAt: string;

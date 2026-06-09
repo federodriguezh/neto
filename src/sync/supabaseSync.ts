@@ -101,6 +101,12 @@ async function processQueueEntry(entry: SyncQueueEntry): Promise<void> {
   const mapped = camelToSnakeRow(tableName, data as Record<string, unknown>);
   const payload = { ...mapped };
 
+  // Strip derived local-only fields that don't exist in Supabase
+  if (tableName === 'transactions') {
+    delete (payload as Record<string, unknown>).priceArs;
+    delete (payload as Record<string, unknown>).feesArs;
+  }
+
   // Only add user_id for tables that actually have the column
   if (!['households', 'expenses', 'expense_splits'].includes(tableName)) {
     payload.user_id = user.id;

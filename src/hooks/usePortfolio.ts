@@ -25,10 +25,8 @@ export function usePortfolio(date?: string) {
     for (const tx of transactions) {
       const key = tx.symbol;
       const existing = map.get(key);
-      // NOTE: transactions marked as USD are treated as ARS-equivalent for portfolio math.
-      // Full multi-currency portfolio computation requires async historical rate lookups.
-      const price = tx.price;
-      const fees = tx.fees;
+      const price = tx.priceArs ?? tx.price;
+      const fees = tx.feesArs ?? tx.fees;
       if (!existing) {
         map.set(key, {
           quantity: tx.type === 'buy' ? tx.quantity : -tx.quantity,

@@ -146,6 +146,22 @@ db.version(6).stores({
   participants: 'id, name, householdId',
 });
 
+db.version(7).stores({
+  accounts: 'id, name, createdAt',
+  transactions: 'id, date, accountId, symbol, assetClass, type',
+  historicalPrices: '[symbol+date], symbol, date, close',
+  portfolioHistory: 'date, value',
+  priceCache: 'symbol, price, timestamp',
+  preferences: 'key',
+  exchangeRates: '[type+date], type, date',
+  syncQueue: 'id, tableName, timestamp',
+  incomeEntries: 'id, date, category, participantId',
+  expenses: 'id, date, category, paidBy, householdId',
+  expenseSplits: 'id, expenseId, participantId, settled',
+  households: 'id, name, inviteCode',
+  participants: 'id, name, householdId',
+});
+
 export { db };
 
 export async function getAccounts(): Promise<Account[]> {

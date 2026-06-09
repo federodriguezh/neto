@@ -7,6 +7,8 @@ import { getTransactions, addTransaction, updateTransaction, deleteTransaction, 
 import type { Transaction, ExchangeRate } from '../types';
 import TransactionForm from '../components/TransactionForm';
 import { convertArsToUsd, formatCurrencyItem } from '../utils/currency';
+import { convertTransactionToArs } from '../utils/convertToArs';
+import { ensureHistoricalExchangeRates } from '../api/exchangeRates';
 
 function buildRateMap(rates: ExchangeRate[]): Map<string, number> {
   const map = new Map<string, number>();
@@ -83,12 +85,25 @@ export default function TransactionsPage() {
 
   const rateMap = useMemo(() => buildRateMap(exchangeRates), [exchangeRates]);
 
+  async function computeArsEquivalents(tx: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'>): Promise<{ priceArs?: number; feesArs?: number }> {
+    const normalized = (tx.currency ?? 'ARS').toUpperCase();
+    if (normalized === 'USD' || normalized === 'MEP' || normalized === 'CCL') {
+      await ensureHistoricalExchangeRates('mep');
+      const converted = await convertTransactionToArs(tx.date, tx.price, tx.fees, normalized);
+      if (converted.currency === 'ARS') {
+        return { priceArs: converted.price, feesArs: converted.fees };
+      }
+    }
+    return {};
+  }
+
   const handleAdd = async (tx: Omit<Transaction, 'id' | 'updatedAt' | 'createdAt'>) => {
     if (tx.type === 'sell' && tx.quantity > getAvailableQuantity(transactions, tx)) {
       alert(t('transactions.oversell'));
       return;
     }
-    await addTransaction(tx);
+    const ars = await computeArsEquivalents(tx);
+    await addTransaction({ ...tx, ...ars });
     await updateAllRealizedPnl();
     await refresh();
     setShowForm(false);
@@ -100,7 +115,8 @@ export default function TransactionsPage() {
         alert(t('transactions.oversell'));
         return;
       }
-      await updateTransaction(editing.id, tx);
+      const ars = await computeArsEquivalents(tx);
+      await updateTransaction(editing.id, { ...tx, ...ars });
       await updateAllRealizedPnl();
       await refresh();
       setEditing(undefined);
