@@ -389,8 +389,10 @@ async function pullHouseholdAndExpenses(userId: string): Promise<void> {
     }
   }
 
+  if (!participant.household_id) return;
+
   const { data: expData } = await supabase.from('expenses')
-    .select('*').eq('household_id', partData.household_id);
+    .select('*').eq('household_id', participant.household_id);
   if (expData) {
     await db.expenses.clear();
     for (const e of expData) {
