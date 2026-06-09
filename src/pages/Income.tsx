@@ -3,15 +3,13 @@ import { Plus, Pencil, Trash2, TrendingUp } from 'lucide-react';
 import { useIncome } from '../hooks/useIncome';
 import { useHouseholds } from '../hooks/useHouseholds';
 import { useTranslation } from '../i18n';
-import { formatCurrency } from '../utils/currency';
-import { useDisplayCurrency } from '../hooks/useDisplayCurrency';
+import { formatCurrencyItem } from '../utils/currency';
 import type { IncomeCategory } from '../types';
 
 const CATEGORIES: IncomeCategory[] = ['salary', 'freelance', 'investment', 'gift', 'other'];
 
 export default function IncomePage() {
   const { t } = useTranslation();
-  const { displayCurrency } = useDisplayCurrency();
   const { entries, loading, addEntry, updateEntry, deleteEntry, getMonthlyTotal } = useIncome();
   const { participants } = useHouseholds();
   
@@ -21,6 +19,7 @@ export default function IncomePage() {
   const [source, setSource] = useState('');
   const [category, setCategory] = useState<IncomeCategory>('salary');
   const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState('ARS');
   const [participantId, setParticipantId] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -29,6 +28,7 @@ export default function IncomePage() {
     setSource('');
     setCategory('salary');
     setAmount('');
+    setCurrency('ARS');
     setParticipantId('');
     setNotes('');
     setShowForm(false);
@@ -43,7 +43,7 @@ export default function IncomePage() {
       source,
       category,
       amount: parseFloat(amount),
-      currency: 'ARS',
+      currency,
       participantId: participantId || undefined,
       notes: notes || undefined,
     };
@@ -66,6 +66,7 @@ export default function IncomePage() {
     setSource(entry.source);
     setCategory(entry.category);
     setAmount(entry.amount.toString());
+    setCurrency(entry.currency ?? 'ARS');
     setParticipantId(entry.participantId || '');
     setNotes(entry.notes || '');
     setShowForm(true);
@@ -103,7 +104,7 @@ export default function IncomePage() {
           <h2 className="text-sm font-medium text-slate-200">{t('income.monthlyTotal')}</h2>
         </div>
         <p className="text-2xl font-bold text-emerald-400">
-          {formatCurrency(monthlyTotal, displayCurrency)}
+          {formatCurrencyItem(monthlyTotal, 'ARS')}
         </p>
       </div>
 
@@ -172,6 +173,20 @@ export default function IncomePage() {
                 className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700 focus:border-emerald-500 focus:outline-none"
                 required
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                {t('income.currency')}
+              </label>
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700 focus:border-emerald-500 focus:outline-none"
+              >
+                <option value="ARS">ARS ($)</option>
+                <option value="USD">USD (US$)</option>
+              </select>
             </div>
 
             {participants.length > 0 && (
@@ -251,7 +266,7 @@ export default function IncomePage() {
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold text-emerald-400">
-                      {formatCurrency(entry.amount, displayCurrency)}
+                      {formatCurrencyItem(entry.amount, entry.currency ?? 'ARS')}
                     </p>
                     <div className="flex gap-2 mt-2">
                       <button

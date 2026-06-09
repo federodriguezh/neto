@@ -7,6 +7,7 @@ import {
   clearPortfolioHistory,
 } from '../db';
 import { fetchHistoricalPrices } from '../api/historical';
+import { supabase } from '../lib/supabase';
 
 interface DateHolding {
   symbol: string;
@@ -185,6 +186,28 @@ export function usePortfolioValueHistory() {
       await clearPortfolioHistory();
       await putPortfolioHistory(dailyValues);
       setHistory(dailyValues);
+
+      // Sync computed history to Supabase for cross-device availability
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && dailyValues.length > 0) {
+          const rows = dailyValues.map((h) => ({
+            user_id: user.id,
+            date: h.date,
+            value: h.value,
+          }));
+          // Upsert in chunks to avoid payload limits
+          const chunkSize = 500;
+          for (let i = 0; i < rows.length; i += chunkSize) {
+            await supabase.from('portfolio_history').upsert(
+              rows.slice(i, i + chunkSize),
+              { onConflict: 'user_id,date' }
+            );
+          }
+        }
+      } catch (e) {
+        console.warn('[portfolioHistory] Supabase sync failed:', e);
+      }
     } finally {
       setLoading(false);
     }

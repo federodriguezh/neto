@@ -3,14 +3,13 @@ import { Plus, Pencil, Trash2, Check, Receipt } from 'lucide-react';
 import { useExpenses } from '../hooks/useExpenses';
 import { useHouseholds } from '../hooks/useHouseholds';
 import { useTranslation } from '../i18n';
-import { formatCurrency } from '../utils/currency';
-import { useDisplayCurrency } from '../hooks/useDisplayCurrency';
+import { formatCurrencyItem } from '../utils/currency';
+
 
 const CATEGORIES = ['groceries', 'utilities', 'rent', 'transport', 'entertainment', 'health', 'other'];
 
 export default function ExpensesPage() {
   const { t } = useTranslation();
-  const { displayCurrency } = useDisplayCurrency();
   const { participants } = useHouseholds();
   const { expenses, loading, addExpense, updateExpense, deleteExpense, settleSplit, getSplitsForExpense } = useExpenses();
   
@@ -20,6 +19,7 @@ export default function ExpensesPage() {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('groceries');
   const [totalAmount, setTotalAmount] = useState('');
+  const [currency, setCurrency] = useState('ARS');
   const [paidBy, setPaidBy] = useState('');
   const [splitMethod, setSplitMethod] = useState<'proportional' | 'fixed'>('proportional');
   const [fixedSplit, setFixedSplit] = useState('50');
@@ -29,6 +29,7 @@ export default function ExpensesPage() {
     setDescription('');
     setCategory('groceries');
     setTotalAmount('');
+    setCurrency('ARS');
     setPaidBy(participants[0]?.id || '');
     setSplitMethod('proportional');
     setFixedSplit('50');
@@ -44,7 +45,7 @@ export default function ExpensesPage() {
       description,
       category,
       totalAmount: parseFloat(totalAmount),
-      currency: 'ARS',
+      currency,
       paidBy,
       splitMethod,
       fixedSplit: splitMethod === 'fixed' ? parseFloat(fixedSplit) / 100 : undefined,
@@ -68,6 +69,7 @@ export default function ExpensesPage() {
     setDescription(expense.description);
     setCategory(expense.category);
     setTotalAmount(expense.totalAmount.toString());
+    setCurrency(expense.currency ?? 'ARS');
     setPaidBy(expense.paidBy);
     setSplitMethod(expense.splitMethod);
     if (expense.fixedSplit !== undefined) {
@@ -121,7 +123,7 @@ export default function ExpensesPage() {
           <h2 className="text-sm font-medium text-slate-200">{t('expenses.monthlyTotal')}</h2>
         </div>
         <p className="text-2xl font-bold text-rose-400">
-          {formatCurrency(monthlyTotal, displayCurrency)}
+          {formatCurrencyItem(monthlyTotal, 'ARS')}
         </p>
       </div>
 
@@ -190,6 +192,20 @@ export default function ExpensesPage() {
                 className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700 focus:border-emerald-500 focus:outline-none"
                 required
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                {t('expenses.currency')}
+              </label>
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700 focus:border-emerald-500 focus:outline-none"
+              >
+                <option value="ARS">ARS ($)</option>
+                <option value="USD">USD (US$)</option>
+              </select>
             </div>
 
             {participants.length > 0 && (
@@ -292,7 +308,7 @@ export default function ExpensesPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-rose-400">
-                        {formatCurrency(expense.totalAmount, displayCurrency)}
+                        {formatCurrencyItem(expense.totalAmount, expense.currency ?? 'ARS')}
                       </p>
                       <div className="flex gap-2 mt-2 justify-end">
                         <button
@@ -318,7 +334,7 @@ export default function ExpensesPage() {
                     {expenseSplits.map(split => (
                       <div key={split.id} className="flex items-center justify-between text-sm">
                         <span className="text-slate-400">
-                          {getParticipantName(split.participantId)}: {formatCurrency(split.amount, displayCurrency)}
+                          {getParticipantName(split.participantId)}: {formatCurrencyItem(split.amount, expense.currency ?? 'ARS')}
                         </span>
                         {split.settled ? (
                           <span className="text-emerald-400 text-xs">{t('expenses.settled')}</span>

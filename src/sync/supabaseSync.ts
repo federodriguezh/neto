@@ -41,6 +41,7 @@ const FIELD_MAP: Record<string, Record<string, string>> = {
   expenses: {
     totalAmount: 'total_amount', paidBy: 'paid_by',
     splitMethod: 'split_method', fixedSplit: 'fixed_split',
+    householdId: 'household_id', createdBy: 'created_by',
     createdAt: 'created_at', updatedAt: 'updated_at', deletedAt: 'deleted_at',
   },
   expense_splits: {
@@ -98,23 +99,33 @@ async function processQueueEntry(entry: SyncQueueEntry): Promise<void> {
   if (!user) throw new Error('No authenticated user');
 
   const mapped = camelToSnakeRow(tableName, data as Record<string, unknown>);
-  const dataWithUser = { ...mapped, user_id: user.id };
+  const payload = { ...mapped };
+
+  // Only add user_id for tables that actually have the column
+  if (!['households', 'expenses', 'expense_splits'].includes(tableName)) {
+    payload.user_id = user.id;
+  }
+
+  // Expenses uses created_by instead of user_id
+  if (tableName === 'expenses') {
+    payload.created_by = user.id;
+  }
 
   switch (operation) {
     case 'INSERT':
       if (tableName === 'preferences') {
-        const { key, value } = dataWithUser as Record<string, unknown>;
+        const { key, value } = payload as Record<string, unknown>;
         const { error } = await supabase.from(tableName).insert({ user_id: user.id, key, value });
         if (error) {
           await supabase.from(tableName).update({ value }).eq('user_id', user.id).eq('key', key as string);
         }
       } else {
-        await supabase.from(tableName).insert(dataWithUser);
+        await supabase.from(tableName).insert(payload);
       }
       break;
 
     case 'UPDATE':
-      await supabase.from(tableName).update(dataWithUser).eq('id', recordId);
+      await supabase.from(tableName).update(payload).eq('id', recordId);
       break;
 
     case 'DELETE':
@@ -269,6 +280,7 @@ export async function initialSyncExtended(): Promise<void> {
   // Pull from Supabase
   await pullIncomeFromSupabase(user.id);
   await pullHouseholdAndExpenses(user.id);
+  await pullPortfolioHistoryFromSupabase(user.id);
 }
 
 async function checkRemoteHasExtendedData(userId: string): Promise<boolean> {
@@ -324,7 +336,7 @@ async function uploadLocalExtendedData(userId: string): Promise<void> {
   if (localExp.length > 0) {
     for (const e of localExp) {
       await supabase.from('expenses').insert({
-        id: e.id, household_id: e.householdId ?? null, date: e.date,
+        id: e.id, household_id: e.householdId ?? null, created_by: userId, date: e.date,
         description: e.description, category: e.category, total_amount: e.totalAmount,
         currency: e.currency, paid_by: e.paidBy, split_method: e.splitMethod,
         fixed_split: e.fixedSplit ?? null,
@@ -420,6 +432,20 @@ async function pullHouseholdAndExpenses(userId: string): Promise<void> {
         });
       }
     }
+  }
+}
+
+async function pullPortfolioHistoryFromSupabase(userId: string): Promise<void> {
+  const { data } = await supabase
+    .from('portfolio_history')
+    .select('date, value')
+    .eq('user_id', userId)
+    .order('date', { ascending: true });
+  if (data && data.length > 0) {
+    await db.portfolioHistory.clear();
+    await db.portfolioHistory.bulkPut(
+      data.map((h) => ({ date: h.date, value: h.value }))
+    );
   }
 }
 

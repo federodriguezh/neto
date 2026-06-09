@@ -19,22 +19,26 @@ export function usePortfolio(date?: string) {
     refresh();
   }, [refresh]);
 
-  const { holdings, shortPositions } = useMemo(() => {
+    const { holdings, shortPositions } = useMemo(() => {
     const map = new Map<string, { quantity: number; totalCost: number; assetClass: AssetClass }>();
 
     for (const tx of transactions) {
       const key = tx.symbol;
       const existing = map.get(key);
+      // NOTE: transactions marked as USD are treated as ARS-equivalent for portfolio math.
+      // Full multi-currency portfolio computation requires async historical rate lookups.
+      const price = tx.price;
+      const fees = tx.fees;
       if (!existing) {
         map.set(key, {
           quantity: tx.type === 'buy' ? tx.quantity : -tx.quantity,
-          totalCost: tx.type === 'buy' ? tx.quantity * tx.price + tx.fees : -(tx.quantity * tx.price - tx.fees),
+          totalCost: tx.type === 'buy' ? tx.quantity * price + fees : -(tx.quantity * price - fees),
           assetClass: tx.assetClass,
         });
       } else {
         if (tx.type === 'buy') {
           existing.quantity += tx.quantity;
-          existing.totalCost += tx.quantity * tx.price + tx.fees;
+          existing.totalCost += tx.quantity * price + fees;
         } else {
           // Sell: remove proportional cost basis instead of sale proceeds
           const avgCostBefore = existing.totalCost / existing.quantity;

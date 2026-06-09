@@ -97,10 +97,11 @@ export function useExpenses() {
     return result;
   };
 
-  const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt' | 'updatedAt' | 'household_id'>) => {
+  const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (!user) throw new Error('No user');
 
-    const fullExpense = await addLocalExpense(expense);
+    const expenseWithHousehold = { ...expense, householdId: household?.id };
+    const fullExpense = await addLocalExpense(expenseWithHousehold);
     setExpenses((prev) => [fullExpense, ...prev]);
     enqueueExpenseChange('INSERT', fullExpense).catch(() => {});
 

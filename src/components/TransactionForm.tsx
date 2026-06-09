@@ -20,6 +20,7 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
   const [quantity, setQuantity] = useState(initial?.quantity.toString() ?? '');
   const [price, setPrice] = useState(initial?.price.toString() ?? '');
   const [fees, setFees] = useState(initial?.fees.toString() ?? '0');
+  const [currency, setCurrency] = useState(initial?.currency ?? 'ARS');
   const feesManuallyEdited = useRef(false);
 
   useEffect(() => {
@@ -31,6 +32,7 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
     setQuantity(initial?.quantity.toString() ?? '');
     setPrice(initial?.price.toString() ?? '');
     setFees(initial?.fees.toString() ?? '0');
+    setCurrency(initial?.currency ?? 'ARS');
     feesManuallyEdited.current = false;
   }, [initial, accounts]);
 
@@ -65,7 +67,7 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
       quantity: Number(quantity),
       price: Number(price),
       fees: Number(fees),
-      currency: 'ARS',
+      currency,
     });
   };
 
@@ -124,6 +126,18 @@ export default function TransactionForm({ accounts, initial, onSubmit, onCancel 
           >
             <option value="buy">{t('form.buy')}</option>
             <option value="sell">{t('form.sell')}</option>
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-slate-400">{t('form.currency')}</label>
+          <select
+            className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100 border border-slate-700"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+          >
+            <option value="ARS">ARS ($)</option>
+            <option value="USD">USD (US$)</option>
           </select>
         </div>
 

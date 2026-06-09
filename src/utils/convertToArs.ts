@@ -1,5 +1,5 @@
 /**
- * Convert transaction prices/fees from MEP/CCL to ARS using historical rates.
+ * Convert transaction prices/fees from MEP/CCL/USD to ARS using historical rates.
  * Refuses to silently relabel unconverted values as ARS.
  */
 import { getExchangeRateForDate } from '../api/exchangeRates';
@@ -15,11 +15,10 @@ export async function convertTransactionToArs(
     return { price, fees, currency: 'ARS' };
   }
 
-  if (normalized === 'MEP' || normalized === 'CCL') {
-    const rate = await getExchangeRateForDate(
-      normalized.toLowerCase() as 'mep' | 'ccl',
-      date
-    );
+  if (normalized === 'MEP' || normalized === 'CCL' || normalized === 'USD') {
+    // Use MEP rate for USD as a reasonable proxy
+    const rateType = normalized === 'CCL' ? 'ccl' : 'mep';
+    const rate = await getExchangeRateForDate(rateType, date);
     if (rate !== undefined) {
       return {
         price: price * rate,
@@ -27,8 +26,26 @@ export async function convertTransactionToArs(
         currency: 'ARS',
       };
     }
-    throw new Error(`No exchange rate found for ${normalized} on ${date}`);
+    throw new Error(`No exchange rate found for ${rateType} on ${date}`);
   }
 
   throw new Error(`Unsupported currency "${normalized}" for ${date}`);
+}
+
+export async function convertAmountToArs(
+  date: string,
+  amount: number,
+  currency: string
+): Promise<number> {
+  const normalized = currency.toUpperCase().trim();
+  if (normalized === 'ARS' || !normalized) {
+    return amount;
+  }
+
+  const rateType = normalized === 'CCL' ? 'ccl' : 'mep';
+  const rate = await getExchangeRateForDate(rateType, date);
+  if (rate !== undefined) {
+    return amount * rate;
+  }
+  throw new Error(`No exchange rate found for ${rateType} on ${date}`);
 }

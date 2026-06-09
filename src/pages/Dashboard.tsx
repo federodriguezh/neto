@@ -13,7 +13,7 @@ import { useIncome } from '../hooks/useIncome';
 import { useExpenses } from '../hooks/useExpenses';
 import { useHouseholds } from '../hooks/useHouseholds';
 import { useTranslation } from '../i18n';
-import { convertArsToUsd, formatCurrency } from '../utils/currency';
+import { convertArsToUsd, formatCurrency, formatCurrencyItem } from '../utils/currency';
 import PortfolioChart from '../components/PortfolioChart';
 import ComparisonChart from '../components/ComparisonChart';
 import HoldingsTable from '../components/HoldingsTable';
@@ -113,27 +113,29 @@ export default function Dashboard() {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
-    return incomeEntries
-      .filter(e => {
-        const d = new Date(e.date);
-        return d.getFullYear() === year && d.getMonth() === month;
-      })
-      .reduce((sum, e) => sum + e.amount, 0);
+    const entries = incomeEntries.filter(e => {
+      const d = new Date(e.date);
+      return d.getFullYear() === year && d.getMonth() === month;
+    });
+    const ars = entries.filter(e => (e.currency ?? 'ARS').toUpperCase() === 'ARS').reduce((sum, e) => sum + e.amount, 0);
+    const usd = entries.filter(e => (e.currency ?? 'ARS').toUpperCase() === 'USD').reduce((sum, e) => sum + e.amount, 0);
+    return { ars, usd, total: ars + usd };
   }, [incomeEntries]);
 
   const monthlyExpenses = useMemo(() => {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
-    return expenses
-      .filter(e => {
-        const d = new Date(e.date);
-        return d.getFullYear() === year && d.getMonth() === month;
-      })
-      .reduce((sum, e) => sum + e.totalAmount, 0);
+    const entries = expenses.filter(e => {
+      const d = new Date(e.date);
+      return d.getFullYear() === year && d.getMonth() === month;
+    });
+    const ars = entries.filter(e => (e.currency ?? 'ARS').toUpperCase() === 'ARS').reduce((sum, e) => sum + e.totalAmount, 0);
+    const usd = entries.filter(e => (e.currency ?? 'ARS').toUpperCase() === 'USD').reduce((sum, e) => sum + e.totalAmount, 0);
+    return { ars, usd, total: ars + usd };
   }, [expenses]);
 
-  const monthlyBalance = monthlyIncome - monthlyExpenses;
+  const monthlyBalance = monthlyIncome.total - monthlyExpenses.total;
 
   return (
     <div className="flex flex-col gap-6">
@@ -190,8 +192,13 @@ export default function Dashboard() {
               <span className="text-xs font-medium uppercase tracking-wider">{t('dashboard.monthlyIncome')}</span>
             </div>
             <div className="text-2xl font-bold text-emerald-400">
-              {formatCurrency(monthlyIncome, displayCurrency)}
+              {formatCurrencyItem(monthlyIncome.ars, 'ARS')}
             </div>
+            {monthlyIncome.usd > 0 && (
+              <div className="text-sm text-slate-400 mt-1">
+                {formatCurrencyItem(monthlyIncome.usd, 'USD')} USD
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl bg-slate-800 p-4">
@@ -200,8 +207,13 @@ export default function Dashboard() {
               <span className="text-xs font-medium uppercase tracking-wider">{t('dashboard.monthlyExpenses')}</span>
             </div>
             <div className="text-2xl font-bold text-rose-400">
-              {formatCurrency(monthlyExpenses, displayCurrency)}
+              {formatCurrencyItem(monthlyExpenses.ars, 'ARS')}
             </div>
+            {monthlyExpenses.usd > 0 && (
+              <div className="text-sm text-slate-400 mt-1">
+                {formatCurrencyItem(monthlyExpenses.usd, 'USD')} USD
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl bg-slate-800 p-4">

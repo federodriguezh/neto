@@ -6,7 +6,7 @@ import { useTranslation } from '../i18n';
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction, getExchangeRatesForType, updateAllRealizedPnl } from '../db';
 import type { Transaction, ExchangeRate } from '../types';
 import TransactionForm from '../components/TransactionForm';
-import { convertArsToUsd, formatCurrency } from '../utils/currency';
+import { convertArsToUsd, formatCurrencyItem } from '../utils/currency';
 
 function buildRateMap(rates: ExchangeRate[]): Map<string, number> {
   const map = new Map<string, number>();
@@ -161,7 +161,8 @@ export default function TransactionsPage() {
           </thead>
           <tbody>
             {transactions.map((tx) => {
-              const rate = isUsd ? getRateWithFallback(rateMap, tx.date, exchangeRates) : undefined;
+              const txIsUsd = tx.currency?.toUpperCase() === 'USD';
+              const rate = !txIsUsd && isUsd ? getRateWithFallback(rateMap, tx.date, exchangeRates) : undefined;
               const priceDisplay = rate !== undefined ? convertArsToUsd(tx.price, rate) : tx.price;
               const feesDisplay = rate !== undefined ? convertArsToUsd(tx.fees, rate) : tx.fees;
               const pnlDisplay = tx.realizedPnl !== undefined && rate !== undefined
@@ -181,12 +182,12 @@ export default function TransactionsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-300">{tx.quantity.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-slate-300">{formatCurrency(priceDisplay, displayCurrency)}</td>
-                  <td className="px-4 py-3 text-slate-300">{formatCurrency(feesDisplay, displayCurrency)}</td>
+                  <td className="px-4 py-3 text-slate-300">{formatCurrencyItem(priceDisplay, tx.currency ?? 'ARS')}</td>
+                  <td className="px-4 py-3 text-slate-300">{formatCurrencyItem(feesDisplay, tx.currency ?? 'ARS')}</td>
                   <td className="px-4 py-3">
                     {tx.type === 'sell' && pnlDisplay !== undefined ? (
                       <span className={`font-medium ${pnlDisplay >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {pnlDisplay >= 0 ? '+' : ''}{formatCurrency(pnlDisplay, displayCurrency)}
+                        {pnlDisplay >= 0 ? '+' : ''}{formatCurrencyItem(pnlDisplay, tx.currency ?? 'ARS')}
                       </span>
                     ) : (
                       <span className="text-slate-500">—</span>
